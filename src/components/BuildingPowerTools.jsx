@@ -1,12 +1,47 @@
+import { useDispatch } from "react-redux";
+import { setBuildingData } from "../dataSlice";
+import { parse } from "papaparse";
 import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
 import { useRef, useEffect, useState } from "react";
-import { useSelector } from "react-redux";
+
+// This component is the form where the .csv file will be inputthen parsed and sent to the redux store for use in other components.
+function CSVField({ setFunction }) {
+  const dispatch = useDispatch();
+
+  const handleChange = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      let power = [];
+      reader.onload = (e) => {
+        const content = e.target.result;
+        const parsedContent = parse(content).data;
+        console.log(parsedContent);
+        parsedContent.pop();
+        parsedContent.shift();
+        const parsedPower = parsedContent.map((datum) => {
+          return { date: datum[0], power: datum[1] ? +datum[1] : NaN };
+        });
+        console.log(parsedPower);
+        setFunction(parsedPower);
+        dispatch(setBuildingData(parsedPower));
+      };
+      reader.readAsText(file);
+    }
+  };
+
+  return (
+    <form>
+      <input type="file" onChange={handleChange} />
+    </form>
+  );
+}
 
 // This component generates a line plot. Modified D3 sample line plot for react.
-export default function LinePlot({
-  data = useSelector((state) => state.data.buildingPower),
-  width = 600,
-  height = 350,
+function LinePlot({
+  data,
+  width = 1000,
+  height = 500,
   marginTop = 50,
   marginRight = 50,
   marginBottom = 50,
@@ -111,7 +146,7 @@ export default function LinePlot({
   const zoomFunction = (e) => {};
 
   return (
-    <svg width={width} height={height}>
+    <svg preserveAspectRatio="xMinYMin meet" viewBox={`0 0 ${width} ${height}`}>
       <g ref={xAxis} />
       <g ref={yAxis} />
       <g>
@@ -121,5 +156,20 @@ export default function LinePlot({
         <path ref={realLine} />
       </g>
     </svg>
+  );
+}
+
+export default function BuildingPowerTools({ className, style }) {
+  const [data, setData] = useState([
+    { date: "01-01-1971", power: 1 },
+    { date: "01-02-1971", power: 1 },
+  ]);
+
+  return (
+    <div className={className} style={style}>
+      <h2>Building Power</h2>
+      <CSVField setFunction={setData} />
+      <LinePlot data={data} />
+    </div>
   );
 }

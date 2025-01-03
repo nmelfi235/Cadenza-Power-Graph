@@ -3,18 +3,25 @@ import { createSlice } from "@reduxjs/toolkit";
 export const dataSlice = createSlice({
   name: "data",
   initialState: {
-    formData: [
+    buildingPower: [
       { date: "01-01-1971", power: 1 },
       { date: "01-02-1971", power: 1 },
     ],
+    batteryProfile: [
+      { date: "01-01-1971", voltage: 53, current: 0 },
+      { date: "01-02-1971", voltage: 53, current: 0 },
+    ],
   },
   reducers: {
-    setData: (state, data) => {
-      state.formData = data.payload;
+    setBuildingData: (state, data) => {
+      state.buildingPower = data.payload;
+    },
+    setBatteryProfile: (state, data) => {
+      state.batteryProfile = data.payload;
     },
   },
 });
 
-export const { setData } = dataSlice.actions;
+export const { setBuildingData, setBatteryProfile } = dataSlice.actions;
 
 export default dataSlice.reducer;

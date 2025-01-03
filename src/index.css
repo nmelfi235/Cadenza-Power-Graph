@@ -4,3 +4,19 @@
   border-radius: 4%;
   box-shadow: 1px 1px 4px black;
 }
+
+input::file-selector-button {
+  background-color: rgba(0, 137, 182, 1);
+  color: white;
+  border: none;
+  border-radius: 10%;
+  margin-left: 2px;
+  padding-top: 0;
+  box-shadow: rgba(99, 99, 99, 0.2) 0px 2px 8px 0px;
+}
+
+input::file-selector-button:hover {
+  cursor: pointer;
+  background-color: rgba(0, 137, 182, 0.6);
+  box-shadow: rgba(99, 99, 99, 0.2) 10px 12px 48px 10px;
+}

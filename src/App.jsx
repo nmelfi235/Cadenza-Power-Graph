@@ -1,14 +1,21 @@
-import LinePlot from "./LinePlot";
-import CSVField from "./CSVField";
+import BuildingPowerTools from "./components/BuildingPowerTools";
 import { useSelector } from "react-redux";
 import "./index.css";
+import BatteryPowerTools from "./components/BatteryPowerTools.jsx";
 
 export default function App() {
-  const data = useSelector((state) => state.data.formData);
+  const buildingData = useSelector((state) => state.data.buildingPower);
+  const batteryData = useSelector((state) => state.data.batteryProfile);
   return (
-    <div id="app">
-      <CSVField />
-      <LinePlot data={data} />
+    <div id="app" className="align-content-center">
+      <BatteryPowerTools
+        className="card p-4 d-flex flex-column align-items-left"
+        style={{ height: 500, width: 800, verticalAlign: "center" }}
+      />
+      <BuildingPowerTools
+        className="card p-4 d-flex flex-column align-items-left"
+        style={{ height: 500, width: 800, verticalAlign: "center" }}
+      />
     </div>
   );
 }

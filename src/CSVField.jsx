@@ -1,5 +1,5 @@
 import { useDispatch } from "react-redux";
-import { setData } from "./dataSlice";
+import { setBuildingData } from "./dataSlice";
 import { parse } from "papaparse";
 
 // This component is the form where the .csv file will be inputthen parsed and sent to the redux store for use in other components.
@@ -21,9 +21,7 @@ export default function CSVField() {
           return { date: datum[0], power: datum[1] ? +datum[1] : NaN };
         });
         console.log(parsedPower);
-        //parsedPower.shift();
-        //parsedPower.pop();
-        dispatch(setData(parsedPower));
+        dispatch(setBuildingData(parsedPower));
       };
       reader.readAsText(file);
     }
