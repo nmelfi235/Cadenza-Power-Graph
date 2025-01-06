@@ -4,12 +4,12 @@ export const dataSlice = createSlice({
   name: "data",
   initialState: {
     buildingPower: [
-      { date: "01-01-1971", power: 1 },
-      { date: "01-02-1971", power: 1 },
+      { date: "01-01-1971", pActual: 1 },
+      { date: "01-02-1971", pActual: 1 },
     ],
     batteryProfile: [
-      { date: "01-01-1971", voltage: 53, current: 0 },
-      { date: "01-02-1971", voltage: 53, current: 0 },
+      { date: "01-01-1971", voltage: 53, current: 80 },
+      { date: "01-02-1971", voltage: 53, current: 80 },
     ],
   },
   reducers: {

@@ -1,18 +1,20 @@
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { setBuildingData } from "../dataSlice";
 import { parse } from "papaparse";
 import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
 import { useRef, useEffect, useState } from "react";
+import "../app/Calculations";
+import { pActual, pBuilding, pBESS, pMeter } from "../app/Calculations";
 
 // This component is the form where the .csv file will be inputthen parsed and sent to the redux store for use in other components.
 function CSVField({ setFunction }) {
   const dispatch = useDispatch();
+  const batteryProfile = useSelector((state) => state.data.batteryProfile);
 
   const handleChange = (event) => {
     const file = event.target.files[0];
     if (file) {
       const reader = new FileReader();
-      let power = [];
       reader.onload = (e) => {
         const content = e.target.result;
         const parsedContent = parse(content).data;
@@ -20,7 +22,17 @@ function CSVField({ setFunction }) {
         parsedContent.pop();
         parsedContent.shift();
         const parsedPower = parsedContent.map((datum) => {
-          return { date: datum[0], power: datum[1] ? +datum[1] : NaN };
+          const date = new Date(
+            new Date(datum[0]) - new Date(parsedContent[0][0])
+          ).toString();
+          const power = +datum[1] ? +datum[1] : NaN;
+          return {
+            date: date,
+            pActual: pActual(power),
+            pBuilding: pBuilding(date, power, batteryProfile),
+            pBESS: pBESS(date, batteryProfile),
+            pMeter: pMeter(date, power),
+          };
         });
         console.log(parsedPower);
         setFunction(parsedPower);
@@ -55,16 +67,24 @@ function LinePlot({
 
   // Y Scale declaration (Domain is min to max power, range is physical screen space)
   const y = d3.scaleLinear(
-    [d3.min(data, (d) => d.power) * 1.25, d3.max(data, (d) => d.power) * 1.25],
+    [
+      d3.min(data, (d) => {
+        let valsList = [];
+        for (const property in d) {
+          if (property !== "date") valsList.push(d[property]);
+        }
+        return d3.min(valsList);
+      }),
+      d3.max(data, (d) => {
+        let valsList = [];
+        for (const property in d) {
+          if (property !== "date") valsList.push(d[property]);
+        }
+        return d3.max(valsList);
+      }),
+    ],
     [height - marginBottom, marginTop]
   );
-
-  // Line generator (Draws line only showing points that are not missing, hiding the missing points)
-  const line = d3
-    .line()
-    .defined((d) => !isNaN(d.power))
-    .x((d) => x(Date.parse(d.date)))
-    .y((d) => y(d.power));
 
   // Add the x-axis to the container.
   const xAxis = useRef(d3.create("g"));
@@ -118,30 +138,52 @@ function LinePlot({
     [yAxis, y]
   );
 
-  const missingLine = useRef(d3.create("path"));
-  useEffect(
-    () =>
-      void d3
-        .select(missingLine.current)
-        .attr("fill", "none")
-        .attr("stroke", "#ccc")
-        .attr("stroke-width", 1.5)
-        .attr("stroke-dasharray", [10, 8])
-        .attr("d", line(data.filter((d) => !isNaN(d.power)))),
-    [missingLine, line]
-  );
+  const drawLine = (property, color, missingRef, realRef) => {
+    // Line generator (Draws line only showing points that are not missing, hiding the missing points)
+    const line = d3
+      .line()
+      .defined((d) => !isNaN(d["pActual"]))
+      .x((d) => x(Date.parse(d.date)))
+      .y((d) => y(d[property]));
 
-  const realLine = useRef(d3.create("path"));
-  useEffect(
-    () =>
-      void d3
-        .select(realLine.current)
-        .attr("fill", "none")
-        .attr("stroke", "steelblue")
-        .attr("stroke-width", 1.5)
-        .attr("d", line(data)),
-    [realLine, line]
-  );
+    useEffect(
+      () =>
+        void d3
+          .select(missingRef.current)
+          .attr("fill", "none")
+          .attr("stroke", "#ccc")
+          .attr("stroke-width", 1.5)
+          .attr("stroke-dasharray", [10, 8])
+          .attr("d", line(data.filter((d) => !isNaN(d[property])))),
+      [missingRef, line]
+    );
+
+    useEffect(
+      () =>
+        void d3
+          .select(realRef.current)
+          .attr("fill", "none")
+          .attr("stroke", color)
+          .attr("stroke-width", 1.5)
+          .attr("d", line(data)),
+      [realRef, line]
+    );
+  };
+  const missingPActual = useRef(d3.create("path"));
+  const realPActual = useRef(d3.create("path"));
+  drawLine("pActual", "blue", missingPActual, realPActual);
+
+  const missingPBESS = useRef(d3.create("path"));
+  const realPBESS = useRef(d3.create("path"));
+  drawLine("pBESS", "black", missingPBESS, realPBESS);
+
+  const missingPBuilding = useRef(d3.create("path"));
+  const realPBuilding = useRef(d3.create("path"));
+  drawLine("pBuilding", "purple", missingPBuilding, realPBuilding);
+
+  const missingPMeter = useRef(d3.create("path"));
+  const realPMeter = useRef(d3.create("path"));
+  drawLine("pMeter", "red", missingPMeter, realPMeter);
 
   const zoomFunction = (e) => {};
 
@@ -150,19 +192,24 @@ function LinePlot({
       <g ref={xAxis} />
       <g ref={yAxis} />
       <g>
-        <path ref={missingLine} />
+        <path ref={missingPActual} />
+        <path ref={realPActual} />
+        <path ref={missingPBESS} />
+        <path ref={realPBESS} />
+        <path ref={missingPBuilding} />
+        <path ref={realPBuilding} />
+        <path ref={missingPMeter} />
+        <path ref={realPMeter} />
       </g>
-      <g>
-        <path ref={realLine} />
-      </g>
+      <g></g>
     </svg>
   );
 }
 
 export default function BuildingPowerTools({ className, style }) {
   const [data, setData] = useState([
-    { date: "01-01-1971", power: 1 },
-    { date: "01-02-1971", power: 1 },
+    { date: "01-01-1971", pActual: 1, pBuilding: 2, pBESS: 3, pMeter: 4 },
+    { date: "01-02-1971", pActual: 1, pBuilding: 2, pBESS: 3, pMeter: 4 },
   ]);
 
   return (

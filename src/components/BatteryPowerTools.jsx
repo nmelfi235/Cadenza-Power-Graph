@@ -12,7 +12,6 @@ function CSVField({ setFunction }) {
     const file = event.target.files[0];
     if (file) {
       const reader = new FileReader();
-      let power = [];
       reader.onload = (e) => {
         const content = e.target.result;
         const parsedContent = parse(content).data;
@@ -20,10 +19,15 @@ function CSVField({ setFunction }) {
         parsedContent.pop();
         parsedContent.shift();
         const parsedPower = parsedContent.map((datum) => {
+          const date = new Date(
+            new Date(datum[0]) - new Date(parsedContent[0][0])
+          ).toUTCString();
+          const voltage = +datum[1] ? +datum[1] : NaN;
+          const current = +datum[2] ? +datum[2] : +datum[2] === 0 ? 0 : NaN;
           return {
-            date: datum[0],
-            voltage: datum[1] ? +datum[1] : NaN,
-            current: datum[2] ? +datum[2] : NaN,
+            date: date,
+            voltage: voltage,
+            current: current,
           };
         });
         console.log(parsedPower);
@@ -231,8 +235,8 @@ function LinePlot({
 
 export default function BatteryPowerTools({ className, style }) {
   const [data, setData] = useState([
-    { date: "01-01-1971", voltage: 1, current: 0 },
-    { date: "01-02-1971", voltage: 1, current: 1 },
+    { date: "01-01-1971", voltage: 53, current: 80 },
+    { date: "01-02-1971", voltage: 53, current: 80 },
   ]);
 
   return (
