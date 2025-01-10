@@ -60,7 +60,7 @@ function CSVField({ setFunction }) {
 function LinePlot({
   data,
   width = 800,
-  height = 200,
+  height = 500,
   marginTop = 20,
   marginRight = 30,
   marginBottom = 30,
@@ -85,6 +85,70 @@ function LinePlot({
     ], //[d3.min(data, (d) => d.current), d3.max(data, (d) => d.current)],
     [height - marginBottom, marginTop]
   );
+  const tooltip = useRef();
+  const bisect = d3.bisector((d) => new Date(d.date)).center; // function that gets the
+  const pointerMoved = (e) => {
+    const i = bisect(data, x.invert(d3.pointer(e)[0]));
+
+    void d3
+      .select(tooltip.current)
+      .style("display", null)
+      .attr(
+        "transform",
+        `translate(${x(new Date(data[i].date))},${voltageY(data[i].voltage)})`
+      );
+
+    const path = d3
+      .select(tooltip.current)
+      .selectAll("path")
+      .data([,])
+      .join("path")
+      .attr("fill", "white")
+      .attr("stroke", "black");
+
+    const text = d3
+      .select(tooltip.current)
+      .selectAll("text")
+      .data([,])
+      .join("text")
+      .call((text) =>
+        text
+          .selectAll("tspan")
+          .data(
+            Object.keys(data[0]).map(
+              (d) =>
+                `${d}: ${
+                  d === "date"
+                    ? d3.timeFormat("%a %d %I:%M %p")(new Date(data[i][d]))
+                    : d === "voltage"
+                    ? d3.format(".2f")(data[i][d]) + " V"
+                    : d3.format(".2f")(data[i][d]) + " A"
+                }`
+            )
+          )
+          .join("tspan")
+          .attr("class", "tooltip-label")
+          .attr("x", 0)
+          .attr("y", (d, i) => `${i * 1.1}em`)
+          .attr("font-weight", (d, i) => (i ? null : "bold"))
+          .text((d) => d)
+      );
+
+    size(text, path);
+  };
+
+  function pointerLeft() {
+    d3.select(tooltip.current).style("display", "none");
+  }
+
+  function size(text, path) {
+    const { x, y, width: w, height: h } = text.node().getBBox();
+    text.attr("transform", `translate(${-w / 2},${15 - y})`);
+    path.attr(
+      "d",
+      `M${-w / 2 - 10},5H-5l5,-5l5,5H${w / 2 + 10}v${h + 20}h-${w + 20}z`
+    );
+  }
 
   // Line generator (Draws line only showing points that are not missing, hiding the missing points)
   const voltageLine = d3
@@ -225,8 +289,20 @@ function LinePlot({
 
   const zoomFunction = (e) => {};
 
+  const svgRef = useRef();
+  d3.select(svgRef.current)
+    .attr("preserveAspectRatio", "xMinYMin meet")
+    .attr(
+      "viewBox",
+      `0 0 ${width + marginLeft + marginRight} ${
+        height + marginBottom + marginTop
+      }`
+    )
+    .on("pointerenter pointermove", pointerMoved)
+    .on("pointerleave", pointerLeft);
+
   return (
-    <svg preserveAspectRatio="xMinYMin meet" viewBox={`0 0 ${width} ${height}`}>
+    <svg ref={svgRef}>
       <g ref={xAxis} />
       <g ref={voltageYAxis} />
       <g ref={currentYAxis} />
@@ -238,29 +314,29 @@ function LinePlot({
         <path ref={currentMissingLine} />
         <path ref={currentRealLine} />
       </g>
+      <g ref={tooltip} />
     </svg>
   );
 }
 
 export default function BatteryPowerTools({ className, style }) {
-  const startDate = useSelector((state) => state.data.buildingPower[0].date);
+  const batteryProfile = useSelector((state) => state.data.batteryProfile);
+  console.log(batteryProfile);
   const [data, setData] = useState([
-    { date: startDate, voltage: 53, current: 80 },
+    { date: new Date(0), voltage: 53, current: 80 },
     {
-      date: new Date(
-        +new Date(startDate) + +new Date(1000 * 60 * 60 * 24)
-      ).toString(),
+      date: new Date(+new Date(0) + +new Date(1000 * 60 * 60 * 24)).toString(),
       voltage: 53,
       current: 80,
     },
   ]);
-  console.log(data);
+  console.log(batteryProfile);
 
   return (
     <div className={className} style={style}>
       <h2>Battery Power</h2>
       <CSVField setFunction={setData} />
-      <LinePlot data={data} />
+      <LinePlot data={batteryProfile} />
       <DownloadButton
         chartData="batteryProfile"
         fileName="Battery_Profile.csv"

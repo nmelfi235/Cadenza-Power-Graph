@@ -1,10 +1,18 @@
 import { useDispatch, useSelector } from "react-redux";
-import { setBuildingData } from "../dataSlice.js";
+import { setBatteryProfile, setBuildingData } from "../dataSlice.js";
+import store from "../app/store.js";
 import { parse } from "papaparse";
 import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
 import { useRef, useEffect, useState } from "react";
 import "../app/Calculations";
-import { pActual, pBuilding, pBESS, pMeter } from "../app/Calculations";
+import {
+  pActual,
+  pBuilding,
+  pBESS,
+  pMeter,
+  pGoal,
+  calcBatteryState,
+} from "../app/Calculations";
 import { tickFormat } from "../app/Helpers";
 import DownloadButton from "./DownloadButton";
 import * as Plot from "@observablehq/plot";
@@ -16,6 +24,7 @@ TODO:
   - Add tooltip that displays all data with correct units
 */
 
+const PGOAL = 5;
 // This component is the form where the .csv file will be inputthen parsed and sent to the redux store for use in other components.
 function CSVField({ setFunction }) {
   const dispatch = useDispatch();
@@ -32,22 +41,32 @@ function CSVField({ setFunction }) {
         console.log(parsedContent);
         parsedContent.pop();
         parsedContent.shift();
+
+        const batteryStats = []; // contents are created in parsedPower mapping
+
         const parsedPower = parsedContent.map((datum) => {
           const date = new Date(
             +new Date(datum[0]) + +new Date(1000 * 60 * 60 * 5) // timezone -5:00 GMT
           ).toString();
           const power = +datum[1] ? +datum[1] : NaN;
+          batteryStats.push({
+            date: date,
+            voltage: store.getState().data.batteryState.batteryVoltage,
+            current: store.getState().data.batteryState.batteryCurrent,
+          });
           return {
             date: date,
             pActual: pActual(power),
-            pBuilding: pBuilding(date, power, batteryProfile),
-            pBESS: pBESS(date, batteryProfile),
+            pBuilding: pBuilding(date, power),
+            pBESS: pBESS(date, power),
             pMeter: pMeter(date, power),
+            pGoal: pGoal(PGOAL),
+            SOC: store.getState().data.batteryState.batterySOC,
           };
         });
-        console.log(parsedPower);
         setFunction(parsedPower);
         dispatch(setBuildingData(parsedPower));
+        dispatch(setBatteryProfile(batteryStats));
       };
       reader.readAsText(file);
     }
@@ -64,7 +83,7 @@ function CSVField({ setFunction }) {
 function LinePlot({
   data,
   width = 800,
-  height = 200,
+  height = 500,
   marginTop = 20,
   marginRight = 30,
   marginBottom = 30,
@@ -83,20 +102,24 @@ function LinePlot({
       d3.min(data, (d) => {
         let valsList = [];
         for (const property in d) {
-          if (property !== "date") valsList.push(d[property]);
+          if (property !== "date" && property !== "SOC")
+            valsList.push(d[property]);
         }
         return d3.min(valsList);
       }),
       d3.max(data, (d) => {
         let valsList = [];
         for (const property in d) {
-          if (property !== "date") valsList.push(d[property]);
+          if (property !== "date" && property !== "SOC")
+            valsList.push(d[property]);
         }
         return d3.max(valsList);
       }),
     ],
     [height - marginBottom, marginTop]
   );
+
+  const socY = d3.scaleLinear([0, 100], [height - marginBottom, marginTop]);
 
   // Add the x-axis to the container.
   const xAxis = useRef(d3.create("g"));
@@ -149,6 +172,26 @@ function LinePlot({
     [yAxis, y]
   );
 
+  const yAxisSOC = useRef(d3.create("g"));
+  useEffect(
+    () =>
+      void d3
+        .select(yAxisSOC.current)
+        .attr("transform", `translate(${width - marginRight}, 0)`)
+        .call(d3.axisRight(socY).ticks(height / 40, ".1f"))
+        .call((g) => g.select(".domain").remove())
+        .call((g) =>
+          g
+            .append("text")
+            .attr("x", -marginLeft)
+            .attr("y", 10)
+            .attr("fill", "currentColor")
+            .attr("text-anchor", "start")
+            .text("SOC (%)")
+        ),
+    [yAxis, y]
+  );
+
   const tooltip = useRef();
   const bisect = d3.bisector((d) => new Date(d.date)).center; // function that gets the
   const pointerMoved = (e) => {
@@ -182,9 +225,11 @@ function LinePlot({
             Object.keys(data[0]).map(
               (d) =>
                 `${d}: ${
-                  d !== "date"
-                    ? d3.format(".2f")(data[i][d]) + "kW"
-                    : d3.timeFormat("%a %d %I:%M %p")(new Date(data[i][d]))
+                  d === "date"
+                    ? d3.timeFormat("%a %B %d %I:%M %p")(new Date(data[i][d]))
+                    : d === "SOC"
+                    ? d3.format(".1f")(data[i][d]) + "%"
+                    : d3.format(".2f")(data[i][d]) + " kW"
                 }`
             )
           )
@@ -262,6 +307,31 @@ function LinePlot({
   const realPMeter = useRef(d3.create("path"));
   drawLine("pMeter", missingPMeter, realPMeter);
 
+  const missingPGoal = useRef(d3.create("path"));
+  const realPGoal = useRef(d3.create("path"));
+  drawLine("pGoal", missingPGoal, realPGoal);
+
+  const SOCref = useRef(d3.create("path"));
+  const SOCline = d3
+    .line()
+    .defined((d) => !isNaN(d["pActual"]))
+    .x((d) => x(Date.parse(d.date)))
+    .y((d) => socY(d.SOC));
+
+  useEffect(
+    () =>
+      void d3
+        .select(SOCref.current)
+        .attr("class", "SOC")
+        .attr("fill", "none")
+        .attr("stroke", colors["SOC"])
+        .attr("stroke-opacity", 0.6)
+        .attr("stroke-width", 1.5)
+        .attr("stroke-dasharray", [10, 8])
+        .attr("d", SOCline(data.filter((d) => !isNaN(d.SOC)))),
+    [SOCref, SOCline]
+  );
+
   const zoomFunction = (e) => {};
 
   const svgRef = useRef();
@@ -281,7 +351,10 @@ function LinePlot({
       <svg ref={svgRef}>
         <g ref={xAxis} />
         <g ref={yAxis} />
+        <g ref={yAxisSOC} />
         <g>
+          <path ref={missingPGoal} />
+          <path ref={realPGoal} />
           <path ref={missingPActual} />
           <path ref={realPActual} />
           <path ref={missingPBESS} />
@@ -290,6 +363,7 @@ function LinePlot({
           <path ref={realPBuilding} />
           <path ref={missingPMeter} />
           <path ref={realPMeter} />
+          <path ref={SOCref} />
         </g>
         <g ref={tooltip} />
       </svg>
@@ -380,14 +454,32 @@ function PLTLinePlot({ data, colors, hidden }) {
 
 export default function BuildingPowerTools({ className, style }) {
   const [data, setData] = useState([
-    { date: "01-01-1971", pActual: 1, pBuilding: 2, pBESS: 3, pMeter: 4 },
-    { date: "01-02-1971", pActual: 1, pBuilding: 2, pBESS: 3, pMeter: 4 },
+    {
+      date: "01-01-1971",
+      pActual: 1,
+      pBuilding: 2,
+      pBESS: 3,
+      pMeter: 4,
+      pGoal: PGOAL,
+      SOC: 100,
+    },
+    {
+      date: "01-02-1971",
+      pActual: 1,
+      pBuilding: 2,
+      pBESS: 3,
+      pMeter: 4,
+      pGoal: PGOAL,
+      SOC: 100,
+    },
   ]);
   const colors = {
     pActual: "blue",
     pBESS: "black",
     pBuilding: "purple",
     pMeter: "red",
+    pGoal: "orange",
+    SOC: "#08f",
   };
 
   return (
