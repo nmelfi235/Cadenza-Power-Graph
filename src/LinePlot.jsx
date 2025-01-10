@@ -1,4 +1,5 @@
 import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
+import * as Plot from "@observablehq/plot";
 import { useRef, useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 
@@ -122,4 +123,43 @@ export default function LinePlot({
       </g>
     </svg>
   );
+}
+function PLTLinePlot({ data, colors }) {
+  const pltRef = useRef();
+
+  useEffect(() => {
+    const processedData = data.flatMap(({ date: head, ...tail }) =>
+      Object.keys(tail).map((d) => {
+        return { Date: head, [d]: tail[d] };
+      })
+    );
+    console.log(processedData);
+
+    const drawLine = (property) => {
+      return [
+        Plot.lineY(data, {
+          filter: (d) => isNaN(d[property]),
+          x: "date",
+          y: property,
+          //strokeOpacity: 0.3,
+          tip: true,
+        }),
+        Plot.lineY(data, {
+          x: "date",
+          y: property,
+        }),
+      ];
+    };
+
+    const plot = Plot.plot({
+      y: { grid: true },
+      x: { grid: true, axis: "bottom" },
+      color: { scheme: colors },
+      marks: [...drawLine("pActual")],
+    });
+    pltRef.current.append(plot);
+    return () => plot.remove();
+  }, [data]);
+
+  return <div ref={pltRef} />;
 }

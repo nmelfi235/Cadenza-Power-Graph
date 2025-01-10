@@ -1,3 +1,4 @@
+import store from "./store";
 // This file holds the calculations for each DPS line.
 
 // The DPS System evaluates its desired operation and power level every time interval tDPS.
@@ -59,7 +60,8 @@ export const pBESS = (date, batteryProfile) => {
 // pMeter refers to the average power usage as would be measured by the utility meter, estimated by the WattNode against the measured demand time interval.
 //   The time interval for the meter average varies depending on the tariff in use and is separate from the DPS timing.
 export const pMeter = (date, power) => {
-  if (date == new Date(0).toString()) {
+  console.log(date, tLast);
+  if (minutesBetween(new Date(date), tLast) >= 0) {
     tLast = new Date(0);
     pLast = 0;
   }

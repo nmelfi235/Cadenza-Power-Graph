@@ -5,18 +5,50 @@
   box-shadow: 1px 1px 4px black;
 }
 
-input::file-selector-button {
+input::file-selector-button,
+.file-download {
   background-color: rgba(0, 137, 182, 1);
   color: white;
   border: none;
   border-radius: 10%;
   margin-left: 2px;
   padding-top: 0;
-  box-shadow: rgba(99, 99, 99, 0.2) 0px 2px 8px 0px;
+  box-shadow: rgba(99, 99, 99, 0.2) 0px 0px 8px 0px;
+  text-decoration: none;
+  padding-left: 4px;
+  padding-right: 4px;
 }
 
-input::file-selector-button:hover {
+input::file-selector-button:hover,
+.file-download:hover,
+.add-event:hover {
   cursor: pointer;
   background-color: rgba(0, 137, 182, 0.6);
-  box-shadow: rgba(99, 99, 99, 0.2) 10px 12px 48px 10px;
+  box-shadow: rgba(99, 99, 99, 0.2) 2px 2px 48px 0px;
+}
+
+input::file-selector-button:active,
+.file-download:active,
+.add-event:active {
+  color: black;
+  background-color: rgba(0, 137, 182, 1);
+}
+
+.add-event {
+  border-radius: 100%;
+  margin-right: 4px;
+  padding: 0;
+  font-size: 20px;
+  font-weight: bold;
+  color: white;
+  background-color: rgba(0, 137, 182, 1);
+  width: 30px;
+  height: 30px;
+  border: none;
+}
+
+.tooltip-label {
+  font-size: 9px;
+  padding: 0;
+  margin: 0;
 }

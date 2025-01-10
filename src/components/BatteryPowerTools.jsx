@@ -1,12 +1,20 @@
-import { useDispatch } from "react-redux";
-import { setBatteryProfile } from "../dataSlice";
+import { useDispatch, useSelector } from "react-redux";
+import { setBatteryProfile } from "../dataSlice.js";
 import { parse } from "papaparse";
 import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
 import { useRef, useEffect, useState } from "react";
+import DownloadButton from "./DownloadButton";
+import { tickFormat } from "../app/Helpers";
+
+/*
+TODO:
+  - 
+*/
 
 // This component is the form where the .csv file will be inputthen parsed and sent to the redux store for use in other components.
 function CSVField({ setFunction }) {
   const dispatch = useDispatch();
+  const startDate = useSelector((state) => state.data.buildingPower[0].date);
 
   const handleChange = (event) => {
     const file = event.target.files[0];
@@ -20,8 +28,11 @@ function CSVField({ setFunction }) {
         parsedContent.shift();
         const parsedPower = parsedContent.map((datum) => {
           const date = new Date(
-            new Date(datum[0]) - new Date(parsedContent[0][0])
-          ).toUTCString();
+            +new Date(datum[0]) -
+              +new Date(parsedContent[0][0]) +
+              +new Date(startDate) +
+              +new Date(1000 * 60 * 60 * 5)
+          ).toString();
           const voltage = +datum[1] ? +datum[1] : NaN;
           const current = +datum[2] ? +datum[2] : +datum[2] === 0 ? 0 : NaN;
           return {
@@ -48,12 +59,12 @@ function CSVField({ setFunction }) {
 // This component generates a line plot. Modified D3 sample line plot for react.
 function LinePlot({
   data,
-  width = 1000,
-  height = 500,
-  marginTop = 50,
-  marginRight = 50,
-  marginBottom = 50,
-  marginLeft = 50,
+  width = 800,
+  height = 200,
+  marginTop = 20,
+  marginRight = 30,
+  marginBottom = 30,
+  marginLeft = 30,
 }) {
   // X Scale declaration (Domain is start thru end date, range is physical screen space)
   const x = d3.scaleTime(
@@ -63,12 +74,15 @@ function LinePlot({
 
   // Y Scale declaration (Domain is min to max voltage, range is physical screen space)
   const voltageY = d3.scaleLinear(
-    [d3.min(data, (d) => d.voltage), d3.max(data, (d) => d.voltage)],
+    [47, 54], //[d3.min(data, (d) => d.voltage), d3.max(data, (d) => d.voltage)],
     [height - marginBottom, marginTop]
   );
 
   const currentY = d3.scaleLinear(
-    [d3.min(data, (d) => d.current), d3.max(data, (d) => d.current)],
+    [
+      -d3.max(data, (d) => d.current) * 1.1,
+      d3.max(data, (d) => d.current) * 1.1,
+    ], //[d3.min(data, (d) => d.current), d3.max(data, (d) => d.current)],
     [height - marginBottom, marginTop]
   );
 
@@ -96,12 +110,12 @@ function LinePlot({
           d3
             .axisBottom(x)
             .ticks(width / 80)
+            .tickFormat(tickFormat)
             .tickSizeOuter(0)
         )
         .call((g) =>
           g
             .selectAll(".tick line")
-            .clone()
             .attr("y2", -height + marginTop + marginBottom)
             .attr("stroke-opacity", 0.1)
             .attr("stroke-dasharray", [8, 10])
@@ -116,12 +130,11 @@ function LinePlot({
       void d3
         .select(voltageYAxis.current)
         .attr("transform", `translate(${marginLeft}, 0)`)
-        .call(d3.axisLeft(voltageY).ticks(height / 40))
+        .call(d3.axisLeft(voltageY).ticks(height / 40, ".1f"))
         .call((g) => g.select(".domain").remove())
         .call((g) =>
           g
             .selectAll(".tick line")
-            .clone()
             .attr("x2", width - marginLeft - marginRight)
             .attr("stroke-opacity", 0.1)
         )
@@ -168,7 +181,7 @@ function LinePlot({
       void d3
         .select(currentYAxis.current)
         .attr("transform", `translate(${width - marginRight}, 0)`)
-        .call(d3.axisRight(currentY).ticks(height / 40))
+        .call(d3.axisRight(currentY).ticks(height / 40, ".1f"))
         .call((g) => g.select(".domain").remove())
         .call((g) =>
           g.selectAll(".tick line").clone().attr("stroke-opacity", 0.1)
@@ -180,7 +193,7 @@ function LinePlot({
             .attr("y", 10)
             .attr("fill", "currentColor")
             .attr("text-anchor", "start")
-            .text("Current (V)")
+            .text("Current (A)")
         ),
     [currentYAxis, currentY]
   );
@@ -219,14 +232,10 @@ function LinePlot({
       <g ref={currentYAxis} />
       <g>
         <path ref={voltageMissingLine} />
-      </g>
-      <g>
-        <path ref={currentMissingLine} />
-      </g>
-      <g>
         <path ref={voltageRealLine} />
       </g>
       <g>
+        <path ref={currentMissingLine} />
         <path ref={currentRealLine} />
       </g>
     </svg>
@@ -234,16 +243,28 @@ function LinePlot({
 }
 
 export default function BatteryPowerTools({ className, style }) {
+  const startDate = useSelector((state) => state.data.buildingPower[0].date);
   const [data, setData] = useState([
-    { date: "01-01-1971", voltage: 53, current: 80 },
-    { date: "01-02-1971", voltage: 53, current: 80 },
+    { date: startDate, voltage: 53, current: 80 },
+    {
+      date: new Date(
+        +new Date(startDate) + +new Date(1000 * 60 * 60 * 24)
+      ).toString(),
+      voltage: 53,
+      current: 80,
+    },
   ]);
+  console.log(data);
 
   return (
     <div className={className} style={style}>
       <h2>Battery Power</h2>
       <CSVField setFunction={setData} />
       <LinePlot data={data} />
+      <DownloadButton
+        chartData="batteryProfile"
+        fileName="Battery_Profile.csv"
+      />
     </div>
   );
 }
