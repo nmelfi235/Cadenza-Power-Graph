@@ -1,5 +1,5 @@
 import { useDispatch, useSelector } from "react-redux";
-import { setBatteryProfile, setBuildingData } from "../dataSlice.js";
+import { setBatteryProfile, setBuildingData, setPGoal } from "../dataSlice.js";
 import store from "../app/store.js";
 import { parse } from "papaparse";
 import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
@@ -24,11 +24,31 @@ TODO:
   - Add tooltip that displays all data with correct units
 */
 
-const PGOAL = 5;
+function GoalField() {
+  const dispatch = useDispatch();
+  return (
+    <div className="dflex flex-row">
+      <label htmlFor="goal-input" style={{ marginRight: 4 }}>
+        Goal:{" "}
+      </label>
+      <input
+        style={{ width: 50 }}
+        id="goal-input"
+        type="number"
+        onChange={(e) => {
+          e.preventDefault();
+          dispatch(setPGoal(e.target.value));
+          console.log(e.target.value);
+        }}
+      />
+    </div>
+  );
+}
 // This component is the form where the .csv file will be inputthen parsed and sent to the redux store for use in other components.
 function CSVField({ setFunction }) {
   const dispatch = useDispatch();
   const batteryProfile = useSelector((state) => state.data.batteryProfile);
+  const PGOAL = useSelector((state) => state.data.pGoal);
 
   const handleChange = (event) => {
     event.preventDefault();
@@ -460,7 +480,7 @@ export default function BuildingPowerTools({ className, style }) {
       pBuilding: 2,
       pBESS: 3,
       pMeter: 4,
-      pGoal: PGOAL,
+      pGoal: 5,
       SOC: 100,
     },
     {
@@ -469,7 +489,7 @@ export default function BuildingPowerTools({ className, style }) {
       pBuilding: 2,
       pBESS: 3,
       pMeter: 4,
-      pGoal: PGOAL,
+      pGoal: 5,
       SOC: 100,
     },
   ]);
@@ -486,6 +506,7 @@ export default function BuildingPowerTools({ className, style }) {
     <div className={className} style={style}>
       <h2>Building Power</h2>
       <CSVField setFunction={setData} />
+      <GoalField />
       <LinePlot data={data} colors={colors} />
       <Legend data={data} colors={colors} />
       <DownloadButton chartData="buildingPower" fileName="DPS_Data.csv" />
