@@ -3,18 +3,40 @@ import { createSlice } from "@reduxjs/toolkit";
 export const dataSlice = createSlice({
   name: "data",
   initialState: {
-    pGoal: 0,
+    DPS: {
+      pGoal: 5,
+      meterScanTime: 30,
+      scanTime: 6,
+    },
+    batterySettings: {
+      maxSellAmps: 100,
+      maxAmpHours: 800,
+    },
     batteryState: {
       batteryVoltage: 54,
       batteryCurrent: 0,
       batterySOC: 100,
-      maxAmpHours: 800,
       batteryAmpHours: 800,
-      maxSellAmps: 100,
     },
     buildingPower: [
-      { date: "01-01-1971", pActual: 1 },
-      { date: "01-02-1971", pActual: 1 },
+      {
+        date: "01-01-1971",
+        pActual: 1,
+        pBuilding: 2,
+        pBESS: 3,
+        pMeter: 4,
+        pGoal: 5,
+        SOC: 6,
+      },
+      {
+        date: "01-02-1971",
+        pActual: 1,
+        pBuilding: 2,
+        pBESS: 3,
+        pMeter: 4,
+        pGoal: 5,
+        SOC: 6,
+      },
     ],
     batteryProfile: [
       { date: "01-01-1971", voltage: 53, current: 80 },
@@ -47,8 +69,14 @@ export const dataSlice = createSlice({
     setEventTable: (state, data) => {
       state.events = data.payload;
     },
-    setPGoal: (state, data) => {
-      state.pGoal = data.payload;
+    setBatterySetting: (state, data) => {
+      const { property, value } = data.payload;
+      state.batterySettings[property] = value;
+    },
+    setDPSProperty: (state, data) => {
+      const { property, value } = data.payload;
+      state.DPS[property] = value;
+      console.log(property, value);
     },
     setBatteryState: (state, data) => {
       state.batteryState = data.payload;
@@ -60,7 +88,7 @@ export const {
   setBuildingData,
   setBatteryProfile,
   setEventTable,
-  setPGoal,
+  setDPSProperty,
   setBatteryState,
 } = dataSlice.actions;
 

@@ -1,54 +1,60 @@
 import { useDispatch, useSelector } from "react-redux";
-import { setBatteryProfile, setBuildingData, setPGoal } from "../dataSlice.js";
+import {
+  setBatteryProfile,
+  setBuildingData,
+  setDPSProperty,
+} from "../dataSlice.js";
 import store from "../app/store.js";
 import { parse } from "papaparse";
 import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
 import { useRef, useEffect, useState } from "react";
-import "../app/Calculations";
-import {
-  pActual,
-  pBuilding,
-  pBESS,
-  pMeter,
-  pGoal,
-  calcBatteryState,
-} from "../app/Calculations";
+import { pActual, pBuilding, pBESS, pMeter, pGoal } from "../app/Calculations";
 import { tickFormat } from "../app/Helpers";
 import DownloadButton from "./DownloadButton";
-import * as Plot from "@observablehq/plot";
-//import * as Plot from "https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6.16/+esm";
 
-/*
-TODO:
-  - Add toggles to turn on/off certain lines like on MCC
-  - Add tooltip that displays all data with correct units
-*/
-
-function GoalField() {
+function DPSSettings({ setFunction }) {
   const dispatch = useDispatch();
+  const data = useSelector((state) => state.data.buildingPower);
   return (
-    <div className="dflex flex-row">
-      <label htmlFor="goal-input" style={{ marginRight: 4 }}>
-        Goal:{" "}
-      </label>
+    <div className="form-row mt-1">
+      <label htmlFor="goal-input">Goal: </label>
       <input
-        style={{ width: 50 }}
         id="goal-input"
         type="number"
+        placeholder={useSelector((state) => state.data.DPS.pGoal)}
         onChange={(e) => {
           e.preventDefault();
-          dispatch(setPGoal(e.target.value));
+          dispatch(
+            setDPSProperty({ property: "pGoal", value: e.target.value })
+          );
+          setFunction(data);
+          console.log(data);
+        }}
+        className="form-control"
+      />
+      <label htmlFor="meter-scan-time-input">Meter Scan Time: </label>
+      <input
+        id="meter-scan-time-input"
+        type="number"
+        placeholder={useSelector((state) => state.data.DPS.meterScanTime)}
+        onChange={(e) => {
+          e.preventDefault();
+          dispatch(
+            setDPSProperty({ property: "meterScanTime", value: e.target.value })
+          );
+          setFunction(data);
           console.log(e.target.value);
         }}
+        className="form-control"
       />
     </div>
   );
 }
+
 // This component is the form where the .csv file will be inputthen parsed and sent to the redux store for use in other components.
 function CSVField({ setFunction }) {
   const dispatch = useDispatch();
-  const batteryProfile = useSelector((state) => state.data.batteryProfile);
-  const PGOAL = useSelector((state) => state.data.pGoal);
+  const PGOAL = useSelector((state) => state.data.DPS.pGoal);
 
   const handleChange = (event) => {
     event.preventDefault();
@@ -58,7 +64,6 @@ function CSVField({ setFunction }) {
       reader.onload = (e) => {
         const content = e.target.result;
         const parsedContent = parse(content).data;
-        console.log(parsedContent);
         parsedContent.pop();
         parsedContent.shift();
 
@@ -93,8 +98,13 @@ function CSVField({ setFunction }) {
   };
 
   return (
-    <form>
-      <input type="file" onChange={handleChange} />
+    <form className="d-flex">
+      <input
+        type="file"
+        onChange={handleChange}
+        className="form-control w-50"
+      />
+      <input type="reset" className="btn btn-primary mx-2" />
     </form>
   );
 }
@@ -352,8 +362,6 @@ function LinePlot({
     [SOCref, SOCline]
   );
 
-  const zoomFunction = (e) => {};
-
   const svgRef = useRef();
   d3.select(svgRef.current)
     .attr("preserveAspectRatio", "xMinYMin meet")
@@ -473,26 +481,9 @@ function PLTLinePlot({ data, colors, hidden }) {
 }
 
 export default function BuildingPowerTools({ className, style }) {
-  const [data, setData] = useState([
-    {
-      date: "01-01-1971",
-      pActual: 1,
-      pBuilding: 2,
-      pBESS: 3,
-      pMeter: 4,
-      pGoal: 5,
-      SOC: 100,
-    },
-    {
-      date: "01-02-1971",
-      pActual: 1,
-      pBuilding: 2,
-      pBESS: 3,
-      pMeter: 4,
-      pGoal: 5,
-      SOC: 100,
-    },
-  ]);
+  const [data, setData] = useState(
+    useSelector((state) => state.data.buildingPower)
+  );
   const colors = {
     pActual: "blue",
     pBESS: "black",
@@ -506,7 +497,7 @@ export default function BuildingPowerTools({ className, style }) {
     <div className={className} style={style}>
       <h2>Building Power</h2>
       <CSVField setFunction={setData} />
-      <GoalField />
+      <DPSSettings setFunction={setData} />
       <LinePlot data={data} colors={colors} />
       <Legend data={data} colors={colors} />
       <DownloadButton chartData="buildingPower" fileName="DPS_Data.csv" />
