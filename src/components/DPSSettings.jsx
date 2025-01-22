@@ -20,59 +20,71 @@ export default function DPSSettings({ setFunction }) {
   }, []);
 
   return (
-    <div className="card form-row my-1 px-3 py-2">
+    <div className="card form-row mx-2 my-1 px-3 py-2" style={{ width: 200 }}>
       <h4>DPS Settings</h4>
       <label htmlFor="goal-input">Goal: </label>
-      <input
-        id="goal-input"
-        type="number"
-        placeholder={useSelector((state) => state.data.DPS.pGoal)}
-        onChange={(e) => {
-          e.preventDefault();
-          dispatch(
-            setDPSProperty({ property: "pGoal", value: e.target.value })
-          );
-          setFunction(data);
-        }}
-        className="form-control"
-        data-bs-toggle="tooltip"
-        data-bs-placement="right"
-        title="Desired Peak Power (kW)"
-      />
+      <div className="input-group">
+        <input
+          id="goal-input"
+          type="number"
+          placeholder={useSelector((state) => state.data.DPS.pGoal)}
+          onChange={(e) => {
+            e.preventDefault();
+            dispatch(
+              setDPSProperty({ property: "pGoal", value: e.target.value })
+            );
+            setFunction(data);
+          }}
+          className="form-control"
+          data-bs-toggle="tooltip"
+          data-bs-placement="right"
+          title="Desired Peak Power (kW)"
+        />
+        <div className="input-group-text">kW</div>
+      </div>
       <label htmlFor="meter-scan-time-input">Meter Scan Time: </label>
-      <input
-        id="meter-scan-time-input"
-        type="number"
-        placeholder={useSelector((state) => state.data.DPS.meterScanTime)}
-        onChange={(e) => {
-          e.preventDefault();
-          dispatch(
-            setDPSProperty({ property: "meterScanTime", value: e.target.value })
-          );
-          setFunction(data);
-        }}
-        className="form-control"
-        data-bs-toggle="tooltip"
-        data-bs-placement="right"
-        title="Power Meter Scan Time (m)"
-      />
+      <div className="input-group">
+        <input
+          id="meter-scan-time-input"
+          type="number"
+          placeholder={useSelector((state) => state.data.DPS.meterScanTime)}
+          onChange={(e) => {
+            e.preventDefault();
+            dispatch(
+              setDPSProperty({
+                property: "meterScanTime",
+                value: e.target.value,
+              })
+            );
+            setFunction(data);
+          }}
+          className="form-control"
+          data-bs-toggle="tooltip"
+          data-bs-placement="right"
+          title="Power Meter Scan Time (min)"
+        />
+        <div className="input-group-text">min</div>
+      </div>
       <label htmlFor="dps-scan-time-input">DPS Scan Time: </label>
-      <input
-        id="dps-scan-time-input"
-        type="number"
-        placeholder={useSelector((state) => state.data.DPS.scanTime)}
-        onChange={(e) => {
-          e.preventDefault();
-          dispatch(
-            setDPSProperty({ property: "scanTime", value: e.target.value })
-          );
-          setFunction(data);
-        }}
-        className="form-control"
-        data-bs-toggle="tooltip"
-        data-bs-placement="right"
-        title="Scheduled Event Duration (m)"
-      />
+      <div className="input-group">
+        <input
+          id="dps-scan-time-input"
+          type="number"
+          placeholder={useSelector((state) => state.data.DPS.scanTime)}
+          onChange={(e) => {
+            e.preventDefault();
+            dispatch(
+              setDPSProperty({ property: "scanTime", value: e.target.value })
+            );
+            setFunction(data);
+          }}
+          className="form-control"
+          data-bs-toggle="tooltip"
+          data-bs-placement="right"
+          title="Scheduled Event Duration (m)"
+        />
+        <div className="input-group-text">min</div>
+      </div>
     </div>
   );
 }

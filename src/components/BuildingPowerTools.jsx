@@ -75,7 +75,7 @@ function CSVField({ setFunction }) {
   };
 
   return (
-    <form className="d-flex">
+    <form className="d-flex flex-row w-75 justify-content-center">
       <input
         type="file"
         onChange={handleChange}
@@ -95,7 +95,7 @@ function CSVField({ setFunction }) {
 // This component generates a line plot. Modified D3 sample line plot for react.
 function LinePlot({
   data,
-  width = 800,
+  width = 1000,
   height = 500,
   marginTop = 20,
   marginRight = 30,
@@ -397,23 +397,37 @@ export default function BuildingPowerTools({ className, style }) {
 
   return (
     <div className={className} style={style}>
-      <p className="lead">Step 1: Adjust settings as needed.</p>
-      <div className="d-flex flex-row">
-        <DPSSettings setFunction={setData} />
-        <BatterySettings />
+      <div id="step-one" className="d-flex flex-column align-items-center">
+        <p className="lead">Step 1: Adjust settings as needed.</p>
+        <div className="d-flex flex-row justify-content-center">
+          <DPSSettings setFunction={setData} />
+          <BatterySettings />
+        </div>
       </div>
-      <hr />
-      <p className="lead">
-        Step 2: Upload a csv file with the date and building power.
-      </p>
-      <CSVField setFunction={setData} />
-      <hr />
-      <h2>Building Power</h2>
-      <LinePlot data={data} colors={colors} />
-      <Legend data={data} colors={colors} />
-      <hr />
-      <p className="lead">Step 3: Download your projected data.</p>
-      <DownloadButton chartData="buildingPower" fileName="DPS_Data.csv" />
+      <div
+        id="step-two"
+        className="d-flex flex-column align-items-center border-top my-2"
+      >
+        <p className="lead my-2">
+          Step 2: Upload a csv file with the date and building power.
+        </p>
+        <CSVField setFunction={setData} />
+      </div>
+      <div
+        id="main-graph"
+        className="d-flex flex-column w-100 h-50 align-items-center border-top my-2"
+      >
+        <h2 className="display-6 my-2">Building Power</h2>
+        <LinePlot data={data} colors={colors} />
+        <Legend data={data} colors={colors} />
+      </div>
+      <div
+        id="step-three"
+        className="d-flex flex-column align-items-center border-top my-2"
+      >
+        <p className="lead my-2">Step 3: Download your projected data.</p>
+        <DownloadButton chartData="buildingPower" fileName="DPS_Data.csv" />
+      </div>
     </div>
   );
 }

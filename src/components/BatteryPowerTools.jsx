@@ -51,7 +51,7 @@ function CSVField({ setFunction }) {
 
   return (
     <form>
-      <input type="file" onChange={handleChange} />
+      <input type="file" className="form-control" onChange={handleChange} />
     </form>
   );
 }
@@ -59,7 +59,7 @@ function CSVField({ setFunction }) {
 // This component generates a line plot. Modified D3 sample line plot for react.
 function LinePlot({
   data,
-  width = 800,
+  width = 1000,
   height = 500,
   marginTop = 20,
   marginRight = 30,
