@@ -52,3 +52,11 @@ input::file-selector-button:active,
   padding: 0;
   margin: 0;
 }
+
+.legend button {
+  background-color: white;
+}
+
+.legend button:hover {
+  background-color: gray;
+}

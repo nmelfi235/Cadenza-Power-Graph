@@ -11,6 +11,7 @@ export const dataSlice = createSlice({
     batterySettings: {
       maxSellAmps: 100,
       maxAmpHours: 800,
+      initialSOC: 100,
     },
     batteryState: {
       batteryVoltage: 54,
@@ -88,6 +89,7 @@ export const {
   setBuildingData,
   setBatteryProfile,
   setEventTable,
+  setBatterySetting,
   setDPSProperty,
   setBatteryState,
 } = dataSlice.actions;

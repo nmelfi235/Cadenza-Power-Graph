@@ -11,45 +11,9 @@ import { useRef, useEffect, useState } from "react";
 import { pActual, pBuilding, pBESS, pMeter, pGoal } from "../app/Calculations";
 import { tickFormat } from "../app/Helpers";
 import DownloadButton from "./DownloadButton";
-
-function DPSSettings({ setFunction }) {
-  const dispatch = useDispatch();
-  const data = useSelector((state) => state.data.buildingPower);
-  return (
-    <div className="form-row mt-1">
-      <label htmlFor="goal-input">Goal: </label>
-      <input
-        id="goal-input"
-        type="number"
-        placeholder={useSelector((state) => state.data.DPS.pGoal)}
-        onChange={(e) => {
-          e.preventDefault();
-          dispatch(
-            setDPSProperty({ property: "pGoal", value: e.target.value })
-          );
-          setFunction(data);
-          console.log(data);
-        }}
-        className="form-control"
-      />
-      <label htmlFor="meter-scan-time-input">Meter Scan Time: </label>
-      <input
-        id="meter-scan-time-input"
-        type="number"
-        placeholder={useSelector((state) => state.data.DPS.meterScanTime)}
-        onChange={(e) => {
-          e.preventDefault();
-          dispatch(
-            setDPSProperty({ property: "meterScanTime", value: e.target.value })
-          );
-          setFunction(data);
-          console.log(e.target.value);
-        }}
-        className="form-control"
-      />
-    </div>
-  );
-}
+import DPSSettings from "./DPSSettings.jsx";
+import Legend from "./Legend.jsx";
+import BatterySettings from "./BatterySettings.jsx";
 
 // This component is the form where the .csv file will be inputthen parsed and sent to the redux store for use in other components.
 function CSVField({ setFunction }) {
@@ -232,7 +196,7 @@ function LinePlot({
       .style("display", null)
       .attr(
         "transform",
-        `translate(${x(new Date(data[i].date))},${y(data[i].pActual)})`
+        `translate(${d3.pointer(e)[0]},${d3.pointer(e)[1] + 15})`
       );
 
     const path = d3
@@ -264,7 +228,7 @@ function LinePlot({
             )
           )
           .join("tspan")
-          .attr("class", "tooltip-label")
+          .attr("class", (d) => "tooltip-label " + d.match(/\w+/))
           .attr("x", 0)
           .attr("y", (d, i) => `${i * 1.1}em`)
           .attr("font-weight", (d, i) => (i ? null : "bold"))
@@ -399,87 +363,6 @@ function LinePlot({
   );
 }
 
-function Legend({ data, colors }) {
-  function onClick(event, key) {
-    d3.selectAll("." + key).style(
-      "visibility",
-      d3.selectAll("." + key).style("visibility") === "visible"
-        ? "hidden"
-        : "visible"
-    );
-  }
-  return (
-    <div>
-      {(() => {
-        const keyList = [];
-        for (const key of Object.keys(data[0])) {
-          if (key !== "date")
-            keyList.push(
-              <button
-                key={key}
-                onClick={(e) => onClick(e, key)}
-                style={{
-                  color: colors[key],
-                  //border: "none",
-                  backgroundColor: "white",
-                }}
-              >
-                {key}
-              </button>
-            );
-        }
-        return keyList;
-      })()}
-    </div>
-  );
-}
-
-function PLTLinePlot({ data, colors, hidden }) {
-  const pltRef = useRef();
-
-  useEffect(() => {
-    const processedData = data.flatMap(({ date: head, ...tail }) =>
-      Object.keys(tail).map((d) => {
-        return { Date: head, key: d, Value: tail[d] };
-      })
-    );
-    console.log(processedData);
-
-    const drawLine = () => {
-      const missingLine = Plot.lineY(processedData, {
-        filter: (d) => !isNaN(d.Value),
-        x: "Date",
-        y: "Value",
-        z: "key",
-        strokeOpacity: 0.3,
-        strokeDasharray: [10, 8],
-        tip: true,
-      });
-      console.log(missingLine);
-      return [
-        missingLine,
-        Plot.lineY(processedData, {
-          x: "Date",
-          y: "Value",
-          z: "key",
-          stroke: "key",
-        }),
-      ];
-    };
-
-    const plot = Plot.plot({
-      y: { grid: true, label: "Power (kW)", nice: true },
-      x: { grid: true, label: "Date", nice: true },
-      color: { range: colors, legend: true },
-      marks: [...drawLine(), Plot.axisX({ tickSpacing: 80 })],
-    });
-    pltRef.current.append(plot);
-    return () => plot.remove();
-  }, [data]);
-
-  return <div ref={pltRef} />;
-}
-
 export default function BuildingPowerTools({ className, style }) {
   const [data, setData] = useState(
     useSelector((state) => state.data.buildingPower)
@@ -497,7 +380,10 @@ export default function BuildingPowerTools({ className, style }) {
     <div className={className} style={style}>
       <h2>Building Power</h2>
       <CSVField setFunction={setData} />
-      <DPSSettings setFunction={setData} />
+      <div className="d-flex flex-row">
+        <DPSSettings setFunction={setData} />
+        <BatterySettings />
+      </div>
       <LinePlot data={data} colors={colors} />
       <Legend data={data} colors={colors} />
       <DownloadButton chartData="buildingPower" fileName="DPS_Data.csv" />
