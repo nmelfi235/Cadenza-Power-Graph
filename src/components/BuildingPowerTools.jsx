@@ -20,6 +20,19 @@ function CSVField({ setFunction }) {
   const dispatch = useDispatch();
   const PGOAL = useSelector((state) => state.data.DPS.pGoal);
 
+  // Enable bootstrap tooltips
+  useEffect(() => {
+    const tooltipTriggerList = document.querySelectorAll(
+      '[data-bs-toggle="tooltip"]'
+    );
+    const tooltipList = [...tooltipTriggerList].map(
+      (tooltipTriggerEl) => new bootstrap.Tooltip(tooltipTriggerEl)
+    );
+    return () => {
+      tooltipList.map((t) => t.dispose());
+    };
+  }, []);
+
   const handleChange = (event) => {
     event.preventDefault();
     const file = event.target.files[0];
@@ -68,7 +81,13 @@ function CSVField({ setFunction }) {
         onChange={handleChange}
         className="form-control w-50"
       />
-      <input type="reset" className="btn btn-primary mx-2" />
+      <input
+        type="reset"
+        className="btn btn-primary mx-2"
+        data-bs-toggle="tooltip"
+        data-bs-placement="right"
+        title="Click to reset data"
+      />
     </form>
   );
 }
@@ -378,14 +397,22 @@ export default function BuildingPowerTools({ className, style }) {
 
   return (
     <div className={className} style={style}>
-      <h2>Building Power</h2>
-      <CSVField setFunction={setData} />
+      <p className="lead">Step 1: Adjust settings as needed.</p>
       <div className="d-flex flex-row">
         <DPSSettings setFunction={setData} />
         <BatterySettings />
       </div>
+      <hr />
+      <p className="lead">
+        Step 2: Upload a csv file with the date and building power.
+      </p>
+      <CSVField setFunction={setData} />
+      <hr />
+      <h2>Building Power</h2>
       <LinePlot data={data} colors={colors} />
       <Legend data={data} colors={colors} />
+      <hr />
+      <p className="lead">Step 3: Download your projected data.</p>
       <DownloadButton chartData="buildingPower" fileName="DPS_Data.csv" />
     </div>
   );

@@ -33,8 +33,11 @@ function LegendButton({ keyName, color }) {
 
   return (
     <button
+      className="btn btn-secondary mx-1"
       onClick={(e) => onClick(e, keyName)}
-      style={{ color: color, backgroundColor: pressed && "black" }}
+      style={{
+        color: (!pressed && color) || "transparent",
+      }}
     >
       {keyName}
     </button>

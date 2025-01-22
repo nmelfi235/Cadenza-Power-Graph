@@ -1,9 +1,23 @@
 import { useDispatch, useSelector } from "react-redux";
 import { setBatterySetting } from "../dataSlice";
+import { useEffect } from "react";
 
 export default function BatterySettings() {
   const dispatch = useDispatch();
   const settings = useSelector((state) => state.data.batterySettings);
+
+  // Enable bootstrap tooltips
+  useEffect(() => {
+    const tooltipTriggerList = document.querySelectorAll(
+      '[data-bs-toggle="tooltip"]'
+    );
+    const tooltipList = [...tooltipTriggerList].map(
+      (tooltipTriggerEl) => new bootstrap.Tooltip(tooltipTriggerEl)
+    );
+    return () => {
+      tooltipList.map((t) => t.dispose());
+    };
+  }, []);
 
   return (
     <div className="card form-row my-1 px-3 py-2">
@@ -24,6 +38,9 @@ export default function BatterySettings() {
           console.log(settings);
         }}
         className="form-control"
+        data-bs-toggle="tooltip"
+        data-bs-placement="right"
+        title="Maximum battery current (A)"
       ></input>
       <label htmlFor="max-amp-hours-input">MaxAmpHours:</label>
       <input
@@ -41,6 +58,9 @@ export default function BatterySettings() {
           console.log(settings);
         }}
         className="form-control"
+        data-bs-toggle="tooltip"
+        data-bs-placement="right"
+        title="Battery capacity (Ah)"
       ></input>
       <label htmlFor="initial-soc-input">Starting SOC:</label>
       <input
@@ -58,6 +78,9 @@ export default function BatterySettings() {
           console.log(settings);
         }}
         className="form-control"
+        data-bs-toggle="tooltip"
+        data-bs-placement="right"
+        title="State of Charge (%)"
       ></input>
     </div>
   );

@@ -1,4 +1,6 @@
 import { useSelector } from "react-redux";
+import { Tooltip } from "bootstrap";
+import { useEffect } from "react";
 
 export default function DownloadButton({ chartData, fileName }) {
   const data = useSelector((state) => state.data[chartData]);
@@ -16,9 +18,28 @@ export default function DownloadButton({ chartData, fileName }) {
     ].join("\r\n");
   const encodedUri = encodeURI(csvContent);
 
+  useEffect(() => {
+    const tooltipTriggerList = document.querySelectorAll(
+      '[data-bs-toggle="tooltip"]'
+    );
+    const tooltipList = [...tooltipTriggerList].map(
+      (tooltipTriggerEl) => new bootstrap.Tooltip(tooltipTriggerEl)
+    );
+    return () => {
+      tooltipList.map((t) => t.dispose());
+    };
+  }, []);
+
   return (
     <span>
-      <a className="file-download" href={encodedUri} download={fileName}>
+      <a
+        className="btn btn-primary"
+        href={encodedUri}
+        download={fileName}
+        data-bs-toggle="tooltip"
+        data-bs-placement="right"
+        title="Click to download graph data"
+      >
         Download Graph
       </a>
     </span>

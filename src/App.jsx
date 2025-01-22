@@ -7,7 +7,7 @@ export default function App() {
   return (
     <div id="app" className="align-content-center">
       <BuildingPowerTools
-        className="card p-4 d-flex flex-column align-items-left"
+        className="p-4 d-flex flex-column align-items-left"
         style={{ height: 900, width: 875, verticalAlign: "center" }}
       />
       <div className="d-flex flex-row" style={{ height: 400, width: 2200 }}>
