@@ -1,5 +1,7 @@
 import { useDispatch, useSelector } from "react-redux";
 import {
+  resetBatteryProfile,
+  resetBuildingData,
   setBatteryProfile,
   setBuildingData,
   setDPSProperty,
@@ -14,9 +16,11 @@ import DownloadButton from "./DownloadButton";
 import DPSSettings from "./DPSSettings.jsx";
 import Legend from "./Legend.jsx";
 import BatterySettings from "./BatterySettings.jsx";
+import ACLoadSettings from "./ACLoadSettings.jsx";
 
 // This component is the form where the .csv file will be inputthen parsed and sent to the redux store for use in other components.
 function CSVField({ setFunction }) {
+  const [file, setFile] = useState(null);
   const dispatch = useDispatch();
   const PGOAL = useSelector((state) => state.data.DPS.pGoal);
 
@@ -31,21 +35,18 @@ function CSVField({ setFunction }) {
     return () => {
       tooltipList.map((t) => t.dispose());
     };
-  }, []);
+  }, [file]);
 
-  const handleChange = (event) => {
-    event.preventDefault();
-    const file = event.target.files[0];
+  const updateData = () => {
     if (file) {
       const reader = new FileReader();
-      reader.onload = (e) => {
-        const content = e.target.result;
+      reader.onload = (ev) => {
+        const content = ev.target.result;
         const parsedContent = parse(content).data;
         parsedContent.pop();
         parsedContent.shift();
 
         const batteryStats = []; // contents are created in parsedPower mapping
-
         const parsedPower = parsedContent.map((datum) => {
           const date = new Date(
             +new Date(datum[0]) + +new Date(1000 * 60 * 60 * 5) // timezone -5:00 GMT
@@ -74,6 +75,13 @@ function CSVField({ setFunction }) {
     }
   };
 
+  useEffect(() => updateData(), [file]);
+
+  const handleChange = (event) => {
+    event.preventDefault();
+    setFile(event.target.files[0]);
+  };
+
   return (
     <form className="d-flex flex-row w-75 justify-content-center">
       <input
@@ -87,7 +95,20 @@ function CSVField({ setFunction }) {
         data-bs-toggle="tooltip"
         data-bs-placement="right"
         title="Click to reset data"
+        onClick={(e) => setFile(null)}
       />
+      <button
+        className="btn btn-primary"
+        data-bs-toggle="tooltip"
+        data-bs-placement="right"
+        title="Click to regenerate graph"
+        onClick={(e) => {
+          e.preventDefault();
+          updateData();
+        }}
+      >
+        Generate
+      </button>
     </form>
   );
 }
@@ -173,39 +194,31 @@ function LinePlot({
             .attr("x2", width - marginLeft - marginRight)
             .attr("stroke-opacity", 0.1)
         )
-        .call((g) =>
-          g
-            .append("text")
-            .attr("x", -marginLeft)
-            .attr("y", 10)
-            .attr("fill", "currentColor")
-            .attr("text-anchor", "start")
-            .text("Power (kW)")
-        ),
+        .select("text")
+        .attr("x", -marginLeft)
+        .attr("y", -height + marginBottom + 10)
+        .attr("fill", "currentColor")
+        .attr("text-anchor", "start")
+        .text("Power (kW)"),
     [yAxis, y]
   );
 
   const yAxisSOC = useRef(d3.create("g"));
-  useEffect(
-    () =>
-      void d3
-        .select(yAxisSOC.current)
-        .attr("transform", `translate(${width - marginRight}, 0)`)
-        .call(d3.axisRight(socY).ticks(height / 40, ".1f"))
-        .call((g) => g.select(".domain").remove())
-        .call((g) =>
-          g
-            .append("text")
-            .attr("x", -marginLeft)
-            .attr("y", 10)
-            .attr("fill", "currentColor")
-            .attr("text-anchor", "start")
-            .text("SOC (%)")
-        ),
-    [yAxis, y]
-  );
+  useEffect(() => {
+    void d3
+      .select(yAxisSOC.current)
+      .attr("transform", `translate(${width - marginRight}, 0)`)
+      .call(d3.axisRight(socY).ticks(height / 40, ".1f"))
+      .call((g) => g.select(".domain").remove())
+      .select("text")
+      .attr("x", -marginLeft)
+      .attr("y", -height + marginBottom + 10)
+      .attr("fill", "currentColor")
+      .attr("text-anchor", "start")
+      .text("SOC (%)");
+  }, [yAxis, y]);
 
-  const tooltip = useRef();
+  const tooltip = useRef(d3.create("g"));
   const bisect = d3.bisector((d) => new Date(d.date)).center; // function that gets the
   const pointerMoved = (e) => {
     const i = bisect(data, x.invert(d3.pointer(e)[0]));
@@ -345,7 +358,7 @@ function LinePlot({
     [SOCref, SOCline]
   );
 
-  const svgRef = useRef();
+  const svgRef = useRef(null);
   d3.select(svgRef.current)
     .attr("preserveAspectRatio", "xMinYMin meet")
     .attr(
@@ -397,16 +410,22 @@ export default function BuildingPowerTools({ className, style }) {
 
   return (
     <div className={className} style={style}>
-      <div id="step-one" className="d-flex flex-column align-items-center">
+      <div
+        className="d-flex flex-column align-items-center"
+        data-section
+        style={{ "--section-num": 1 }}
+      >
         <p className="lead">Step 1: Adjust settings as needed.</p>
         <div className="d-flex flex-row justify-content-center">
           <DPSSettings setFunction={setData} />
           <BatterySettings />
+          <ACLoadSettings />
         </div>
       </div>
       <div
-        id="step-two"
         className="d-flex flex-column align-items-center border-top my-2"
+        data-section
+        style={{ "--section-num": 2 }}
       >
         <p className="lead my-2">
           Step 2: Upload a csv file with the date and building power.
@@ -414,16 +433,18 @@ export default function BuildingPowerTools({ className, style }) {
         <CSVField setFunction={setData} />
       </div>
       <div
-        id="main-graph"
         className="d-flex flex-column w-100 h-50 align-items-center border-top my-2"
+        data-section
+        style={{ "--section-num": 3 }}
       >
         <h2 className="display-6 my-2">Building Power</h2>
         <LinePlot data={data} colors={colors} />
         <Legend data={data} colors={colors} />
       </div>
       <div
-        id="step-three"
         className="d-flex flex-column align-items-center border-top my-2"
+        data-section
+        style={{ "--section-num": 4 }}
       >
         <p className="lead my-2">Step 3: Download your projected data.</p>
         <DownloadButton chartData="buildingPower" fileName="DPS_Data.csv" />

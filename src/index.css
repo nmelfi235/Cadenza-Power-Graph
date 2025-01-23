@@ -61,32 +61,14 @@ input::file-selector-button:active,
   background-color: gray;
 }
 
-#step-one,
-#step-two,
-#main-graph,
-#step-three {
+div[data-section] {
   opacity: 0;
   animation-name: fadeIn;
   animation-iteration-count: 1;
   animation-timing-function: ease-in;
   animation-duration: 1s;
   animation-fill-mode: forwards;
-}
-
-#step-one {
-  animation-delay: 0.5s;
-}
-
-#step-two {
-  animation-delay: 1s;
-}
-
-#main-graph {
-  animation-delay: 1.5s;
-}
-
-#step-three {
-  animation-delay: 2s;
+  animation-delay: calc((var(--section-num) * 0.1s));
 }
 
 @keyframes fadeIn {

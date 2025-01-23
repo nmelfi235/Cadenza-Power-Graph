@@ -41,7 +41,6 @@ function CSVField({ setFunction }) {
             current: current,
           };
         });
-        console.log(parsedPower);
         setFunction(parsedPower);
         dispatch(setBatteryProfile(parsedPower));
       };
@@ -85,7 +84,7 @@ function LinePlot({
     ], //[d3.min(data, (d) => d.current), d3.max(data, (d) => d.current)],
     [height - marginBottom, marginTop]
   );
-  const tooltip = useRef();
+  const tooltip = useRef(d3.create("g"));
   const bisect = d3.bisector((d) => new Date(d.date)).center; // function that gets the
   const pointerMoved = (e) => {
     const i = bisect(data, x.invert(d3.pointer(e)[0]));
@@ -204,9 +203,9 @@ function LinePlot({
         )
         .call((g) =>
           g
-            .append("text")
+            .select("text")
             .attr("x", -marginLeft)
-            .attr("y", 10)
+            .attr("y", -height + marginTop + 15)
             .attr("fill", "currentColor")
             .attr("text-anchor", "start")
             .text("Voltage (V)")
@@ -250,15 +249,12 @@ function LinePlot({
         .call((g) =>
           g.selectAll(".tick line").clone().attr("stroke-opacity", 0.1)
         )
-        .call((g) =>
-          g
-            .append("text")
-            .attr("x", -marginLeft)
-            .attr("y", 10)
-            .attr("fill", "currentColor")
-            .attr("text-anchor", "start")
-            .text("Current (A)")
-        ),
+        .select("text")
+        .attr("x", -marginLeft)
+        .attr("y", -height + marginTop + marginBottom + 10)
+        .attr("fill", "currentColor")
+        .attr("text-anchor", "start")
+        .text("Current (A)"),
     [currentYAxis, currentY]
   );
 
@@ -289,7 +285,7 @@ function LinePlot({
 
   const zoomFunction = (e) => {};
 
-  const svgRef = useRef();
+  const svgRef = useRef(null);
   d3.select(svgRef.current)
     .attr("preserveAspectRatio", "xMinYMin meet")
     .attr(
@@ -321,7 +317,6 @@ function LinePlot({
 
 export default function BatteryPowerTools({ className, style }) {
   const batteryProfile = useSelector((state) => state.data.batteryProfile);
-  console.log(batteryProfile);
   const [data, setData] = useState([
     { date: new Date(0), voltage: 53, current: 80 },
     {
@@ -330,7 +325,6 @@ export default function BatteryPowerTools({ className, style }) {
       current: 80,
     },
   ]);
-  console.log(batteryProfile);
 
   return (
     <div className={className} style={style}>
