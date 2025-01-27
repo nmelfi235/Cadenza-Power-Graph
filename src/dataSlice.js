@@ -10,7 +10,8 @@ export const dataSlice = createSlice({
       scanTime: 6,
     },
     batterySettings: {
-      maxSellAmps: 100,
+      maxChargePower: 6,
+      maxDischargePower: 6,
       maxAmpHours: 800,
       initialSOC: 100,
     },

@@ -22,17 +22,18 @@ export default function BatterySettings() {
   return (
     <div className="card form-row mx-2 my-1 px-3 py-2" style={{ width: 200 }}>
       <h4>BESS Settings</h4>
-      <label htmlFor="max-sell-amps-input">Current Limit:</label>
+      <label htmlFor="charge-capacity-input">Max Charge Power:</label>
       <div className="input-group">
         <input
-          id="max-sell-amps-input"
-          placeholder={settings.maxSellAmps}
+          id="charge-capacity-input"
+          placeholder={settings.maxChargePower}
           type="number"
+          step="any"
           onChange={(e) => {
             e.preventDefault();
             dispatch(
               setBatterySetting({
-                property: "maxSellAmps",
+                property: "maxChargePower",
                 value: +e.target.value,
               })
             );
@@ -41,9 +42,33 @@ export default function BatterySettings() {
           className="form-control"
           data-bs-toggle="tooltip"
           data-bs-placement="right"
-          title="Maximum battery current (A)"
+          title="Maximum charge power (kW)"
         />
-        <div className="input-group-text">A</div>
+        <div className="input-group-text">kW</div>
+      </div>
+      <label htmlFor="discharge-capacity-input">Max Discharge Power:</label>
+      <div className="input-group">
+        <input
+          id="discharge-capacity-input"
+          placeholder={settings.maxDischargePower}
+          type="number"
+          step="any"
+          onChange={(e) => {
+            e.preventDefault();
+            dispatch(
+              setBatterySetting({
+                property: "maxDischargePower",
+                value: +e.target.value,
+              })
+            );
+            console.log(settings);
+          }}
+          className="form-control"
+          data-bs-toggle="tooltip"
+          data-bs-placement="right"
+          title="Maximum discharge power (kW)"
+        />
+        <div className="input-group-text">kW</div>
       </div>
       <label htmlFor="max-amp-hours-input">Capacity:</label>
       <div className="input-group">
@@ -51,6 +76,7 @@ export default function BatterySettings() {
           id="max-amp-hours-input"
           placeholder={settings.maxAmpHours}
           type="number"
+          step="any"
           onChange={(e) => {
             e.preventDefault();
             dispatch(
@@ -74,6 +100,7 @@ export default function BatterySettings() {
           id="initial-soc-input"
           placeholder={settings.initialSOC}
           type="number"
+          step="any"
           onChange={(e) => {
             e.preventDefault();
             dispatch(

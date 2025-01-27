@@ -27,6 +27,7 @@ export default function DPSSettings({ setFunction }) {
         <input
           id="goal-input"
           type="number"
+          step="any"
           placeholder={useSelector((state) => state.data.DPS.pGoal)}
           onChange={(e) => {
             e.preventDefault();
@@ -47,6 +48,7 @@ export default function DPSSettings({ setFunction }) {
         <input
           id="meter-scan-time-input"
           type="number"
+          step="any"
           placeholder={useSelector((state) => state.data.DPS.meterScanTime)}
           onChange={(e) => {
             e.preventDefault();
@@ -70,6 +72,7 @@ export default function DPSSettings({ setFunction }) {
         <input
           id="dps-scan-time-input"
           type="number"
+          step="any"
           placeholder={useSelector((state) => state.data.DPS.scanTime)}
           onChange={(e) => {
             e.preventDefault();

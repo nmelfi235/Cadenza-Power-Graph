@@ -142,11 +142,11 @@ const chargeBattery = (date, power) => {
   const { batteryVoltage, batteryCurrent, batterySOC, batteryAmpHours } =
     store.getState().data.batteryState;
 
-  const { maxAmpHours, maxSellAmps } = store.getState().data.batterySettings;
+  const { maxAmpHours, maxChargePower } = store.getState().data.batterySettings;
 
   const currentAdded =
-    (power * 1000) / batteryVoltage > maxSellAmps
-      ? maxSellAmps
+    (power * 1000) / batteryVoltage > (maxChargePower * 1000) / batteryVoltage
+      ? (maxChargePower * 1000) / batteryVoltage
       : (power * 1000) / batteryVoltage; // because power (W) = voltage (V) * current (A), scale power from kW to W
   const ampHoursAdded = (minutesBetween(oldDate, date) / 60) * currentAdded; // because amp-hours (Ah) = current (A) * hours (h), scale minutes to hours
   const newAmpHours =
@@ -173,8 +173,8 @@ const chargeBattery = (date, power) => {
       batteryCurrent:
         newSOC >= 100
           ? 0
-          : newCurrent < -maxSellAmps
-          ? -maxSellAmps
+          : newCurrent < (-maxChargePower * 1000) / newVoltage
+          ? (-maxChargePower * 1000) / newVoltage
           : newCurrent,
       batterySOC: newSOC,
       batteryAmpHours: newAmpHours,
@@ -187,11 +187,13 @@ const dischargeBattery = (date, power) => {
   const { batteryVoltage, batteryCurrent, batterySOC, batteryAmpHours } =
     store.getState().data.batteryState;
 
-  const { maxAmpHours, maxSellAmps } = store.getState().data.batterySettings;
+  const { maxAmpHours, maxDischargePower } =
+    store.getState().data.batterySettings;
 
   const currentRemoved =
-    (power * 1000) / batteryVoltage > maxSellAmps
-      ? maxSellAmps
+    (power * 1000) / batteryVoltage >
+    (maxDischargePower * 1000) / batteryVoltage
+      ? (maxDischargePower * 1000) / batteryVoltage
       : (power * 1000) / batteryVoltage; // because power (W) = voltage (V) * current (A), scale power from kW to W
   const ampHoursRemoved = (minutesBetween(oldDate, date) / 60) * currentRemoved; // because amp-hours (Ah) = current (A) * hours (h), scale minutes to hours
   const newAmpHours = batteryAmpHours - ampHoursRemoved;
@@ -213,7 +215,11 @@ const dischargeBattery = (date, power) => {
     setBatteryState({
       batteryVoltage: newVoltage,
       batteryCurrent:
-        newSOC <= 0 ? 0 : newCurrent > maxSellAmps ? maxSellAmps : newCurrent,
+        newSOC <= 0
+          ? 0
+          : newCurrent > (maxDischargePower * 1000) / newVoltage
+          ? (maxDischargePower * 1000) / newVoltage
+          : newCurrent,
       batterySOC: newSOC,
       batteryAmpHours: newAmpHours,
     })

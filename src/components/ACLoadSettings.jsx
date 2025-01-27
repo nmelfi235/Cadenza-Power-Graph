@@ -29,6 +29,7 @@ export default function ACLoadSettings() {
           id="ac-load-power-input"
           placeholder={acLoadPower}
           type="number"
+          step="any"
           onChange={(e) => {
             e.preventDefault();
             dispatch(setACLoadPower(+e.target.value));
