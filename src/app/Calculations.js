@@ -134,7 +134,8 @@ export const calcBatteryState = (date, powerFromGoal) => {
 };
 
 const getNewVoltage = (soc) => {
-  return 48 + (54 - 48) * (soc / 100);
+  return 45.0521 * soc ** 0.03631896; // derived from exponential curve fitting calculator
+  // return 48 + (54 - 48) * (soc / 100); // default linear estimate for soc to voltage map
 };
 
 const chargeBattery = (date, power) => {
