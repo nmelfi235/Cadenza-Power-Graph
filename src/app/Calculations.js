@@ -107,12 +107,26 @@ export const calcBatteryState = (date, powerFromGoal) => {
     store.getState().data.batteryState;
 
   // First, check if battery should charge-- if DPS flag is on, skip this step. If power > goal, skip this step. If charge is already full, skip this step.
-  if (powerFromGoal < 0 && batterySOC < 100)
+  if (
+    powerFromGoal < 0 &&
+    batterySOC < 100 &&
+    -powerFromGoal > store.getState().data.DPS.chargeClearance
+  )
     chargeBattery(date, -powerFromGoal - store.getState().data.ACLoadPower);
   // send negative power because negative power is a charge here. Converts to positive.
   // Next, check if battery should discharge-- if battery is empty, skip this step. If power < goal, skip this step.
   else if (powerFromGoal > 0 && batterySOC > 0)
     dischargeBattery(date, powerFromGoal);
+  else {
+    store.dispatch(
+      setBatteryState({
+        batteryVoltage: batteryVoltage,
+        batteryCurrent: 0,
+        batterySOC: batterySOC,
+        batteryAmpHours: batteryAmpHours,
+      })
+    );
+  }
 
   // Case where battery is low voltage, this case prevents underflow and also cancels a discharge.
   if (batteryVoltage <= 48) {

@@ -1,5 +1,6 @@
 import { useDispatch, useSelector } from "react-redux";
 import { setEventTable } from "../dataSlice.js";
+import { useRef, useEffect } from "react";
 
 const colWidth = 200,
   rowHeight = 20;
@@ -66,14 +67,23 @@ function InfoTable() {
   );
 }
 
-export default function EventsTable({ className, style }) {
+export default function EventsTable({ className, style, showModal }) {
+  const dialogRef = useRef(null);
+
   return (
     <div className={className} style={style}>
       <div className="d-flex flex-row align-items-center">
-        <button className="add-event">+</button>
+        <button
+          className="add-event"
+          data-toggle="modal"
+          data-target="exampleModal"
+        >
+          <i className="fa-solid fa-plus"></i>
+        </button>
         <h2>Events</h2>
       </div>
       <InfoTable />
+      <dialog ref={dialogRef}></dialog>
     </div>
   );
 }

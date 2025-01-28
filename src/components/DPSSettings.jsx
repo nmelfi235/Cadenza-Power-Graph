@@ -43,6 +43,30 @@ export default function DPSSettings({ setFunction }) {
         />
         <div className="input-group-text">kW</div>
       </div>
+      <label htmlFor="clearance-input">Charge Clearance: </label>
+      <div className="input-group">
+        <input
+          id="clearance-input"
+          type="number"
+          step="any"
+          placeholder={useSelector((state) => state.data.DPS.chargeClearance)}
+          onChange={(e) => {
+            e.preventDefault();
+            dispatch(
+              setDPSProperty({
+                property: "chargeClearance",
+                value: e.target.value,
+              })
+            );
+            setFunction(data);
+          }}
+          className="form-control"
+          data-bs-toggle="tooltip"
+          data-bs-placement="right"
+          title="Threshold band where battery will not charge (kW)"
+        />
+        <div className="input-group-text">kW</div>
+      </div>
       <label htmlFor="meter-scan-time-input">Meter Scan Time: </label>
       <div className="input-group">
         <input

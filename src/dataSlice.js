@@ -6,6 +6,7 @@ export const dataSlice = createSlice({
     ACLoadPower: 0,
     DPS: {
       pGoal: 5,
+      chargeClearance: 0, // new feature where DPS won't initiate a charge if it is too close to the goal (kW)
       meterScanTime: 30,
       scanTime: 6,
     },

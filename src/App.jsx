@@ -18,11 +18,10 @@ export default function App() {
           className="card p-4 d-flex flex-column align-items-left"
           style={{ height: "auto", width: 1200, verticalAlign: "center" }}
         />
-        {/*
         <EventsTable
           className="card p-4 d-flex flex-column align-items-left"
           style={{ height: 400, width: 900, verticalAlign: "center" }}
-        />*/}
+        />
       </div>
     </div>
   );
