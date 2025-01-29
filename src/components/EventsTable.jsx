@@ -68,6 +68,7 @@ function InfoTable() {
 }
 
 function Modal({ openModal, closeModal }) {
+  const [eventType, setEventType] = useState("Charge");
   const ref = useRef();
   const dispatch = useDispatch();
 
@@ -81,7 +82,7 @@ function Modal({ openModal, closeModal }) {
 
   const addNewEvent = (e) => {
     e.preventDefault();
-    console.log(e.target["powerLevel"].value);
+    console.log(e.target["eventType"]);
     dispatch(
       insertEvent({
         eventType: e.target["eventType"].value,
@@ -93,20 +94,47 @@ function Modal({ openModal, closeModal }) {
     closeModal();
   };
 
+  const handleEventChange = (e) => {
+    e.target.classList.toggle("active");
+    setEventType(e.target.value);
+  };
+
   return (
-    <dialog ref={ref} onCancel={closeModal} className="w-75">
-      <h1>New Event</h1>
+    <dialog ref={ref} onCancel={closeModal} className="rounded border-0 w-75">
       <div className="d-flex flex-column justify-content-left">
-        <form onSubmit={addNewEvent}>
-          <label htmlFor="event-type-input">Event Type:</label>
-          <select
-            id="event-type-input"
-            className="form-control"
-            name="eventType"
-          >
-            <option defaultValue="Charge">Charge</option>
-            <option value="Discharge">Discharge</option>
-          </select>
+        <h1>New Event</h1>
+        <form
+          onSubmit={addNewEvent}
+          className="d-flex flex-column justify-content-left"
+        >
+          <label>Event Type:</label>
+          <div id="event-type-input" className="btn-group">
+            <button
+              type="button"
+              className={
+                eventType === "Charge"
+                  ? "btn btn-primary active"
+                  : "btn btn-primary"
+              }
+              value="Charge"
+              onClick={() => setEventType("Charge")}
+            >
+              Charge
+            </button>
+            <input id="eventType" type="hidden" value={eventType} />
+            <button
+              type="button"
+              className={
+                eventType === "Discharge"
+                  ? "btn btn-primary active"
+                  : "btn btn-primary"
+              }
+              value="Discharge"
+              onClick={() => setEventType("Discharge")}
+            >
+              Discharge
+            </button>
+          </div>
           <label htmlFor="power-input">Power Level:</label>
           <div className="input-group">
             <input
@@ -137,7 +165,11 @@ function Modal({ openModal, closeModal }) {
             <button type="submit" className="btn btn-primary">
               Submit
             </button>
-            <button className="btn btn-secondary" onClick={closeModal}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={closeModal}
+            >
               Cancel
             </button>
           </div>
