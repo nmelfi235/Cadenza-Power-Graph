@@ -404,7 +404,7 @@ export default function BuildingPowerTools({ className, style }) {
     pBESS: "darkblue",
     pBuilding: "purple",
     pMeter: "red",
-    pGoal: "yelloworange",
+    pGoal: "orange",
     SOC: "#08f",
   };
 
