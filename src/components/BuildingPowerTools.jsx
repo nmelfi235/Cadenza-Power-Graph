@@ -91,7 +91,7 @@ function CSVField({ setFunction }) {
       />
       <input
         type="reset"
-        className="btn btn-primary mx-2"
+        className="btn btn-danger mx-2"
         data-bs-toggle="tooltip"
         data-bs-placement="right"
         title="Click to reset data"
@@ -400,11 +400,11 @@ export default function BuildingPowerTools({ className, style }) {
     useSelector((state) => state.data.buildingPower)
   );
   const colors = {
-    pActual: "blue",
-    pBESS: "black",
+    pActual: "lightgreen",
+    pBESS: "darkblue",
     pBuilding: "purple",
     pMeter: "red",
-    pGoal: "orange",
+    pGoal: "yelloworange",
     SOC: "#08f",
   };
 
