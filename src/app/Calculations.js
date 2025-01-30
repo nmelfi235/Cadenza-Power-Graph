@@ -105,15 +105,67 @@ export const pMeter = (date, powerActual) => {
 export const calcBatteryState = (date, powerFromGoal) => {
   const { batteryVoltage, batteryCurrent, batterySOC, batteryAmpHours } =
     store.getState().data.batteryState;
+  const eventList = store.getState().data.events;
+  const dateHHMM = [new Date(date).getHours(), new Date(date).getMinutes()];
+  const latestEvent = eventList.reduce((currentEvent, event) => {
+    const startTime = event.startTime.split(":").map((el) => parseInt(el));
+    const endTime = event.endTime.split(":").map((el) => parseInt(el));
+
+    const dayTimeEvent =
+      startTime[0] < endTime[0] ||
+      (startTime[0] === endTime[0] && startTime[1] < endTime[1]);
+    const nightTimeEvent =
+      startTime[0] > endTime[0] ||
+      (startTime[0] === endTime[0] && startTime[1] > endTime[1]);
+    const afterStartTime =
+      startTime[0] < dateHHMM[0] ||
+      (startTime[0] === dateHHMM[0] && startTime[1] < dateHHMM[1]);
+    const beforeEndTime =
+      dateHHMM[0] < endTime[0] ||
+      (dateHHMM[0] === endTime[0] && dateHHMM[1] < endTime[1]);
+    const sameStartEndTime =
+      startTime[0] === endTime[0] && startTime[1] === endTime[1];
+    if (dayTimeEvent && afterStartTime && beforeEndTime && !sameStartEndTime) {
+      // Daytime event, after start time (morning), before end time (evening)
+      return event;
+    } else if (
+      (nightTimeEvent && afterStartTime) ||
+      (nightTimeEvent && beforeEndTime && !sameStartEndTime)
+    ) {
+      // Not a daytime event, after end time (overnight), before start time (morning)
+      return event;
+    }
+    return currentEvent;
+  }, null);
+  console.log(dateHHMM, latestEvent);
 
   // First, check if battery should charge-- if DPS flag is on, skip this step. If power > goal, skip this step. If charge is already full, skip this step.
-  if (powerFromGoal < 0 && batterySOC < 100)
-    chargeBattery(date, -powerFromGoal - store.getState().data.ACLoadPower);
+  if (
+    (latestEvent?.eventType !== "Discharge" &&
+      latestEvent?.eventType === "Charge") ||
+    (latestEvent?.eventType !== "Discharge" &&
+      powerFromGoal < 0 &&
+      batterySOC < 100)
+  )
+    chargeBattery(
+      date,
+      !(latestEvent && latestEvent.eventType === "Charge")
+        ? -powerFromGoal - store.getState().data.ACLoadPower
+        : parseFloat(latestEvent.powerLevel)
+    );
   // send negative power because negative power is a charge here. Converts to positive.
   // Next, check if battery should discharge-- if battery is empty, skip this step. If power < goal, skip this step.
-  else if (powerFromGoal > 0 && batterySOC > 0)
-    dischargeBattery(date, powerFromGoal);
-  else {
+  else if (
+    latestEvent?.eventType === "Discharge" ||
+    (powerFromGoal > 0 && batterySOC > 0)
+  )
+    dischargeBattery(
+      date,
+      !(latestEvent && latestEvent.eventType === "Discharge")
+        ? powerFromGoal
+        : parseFloat(latestEvent.powerLevel)
+    );
+  else if (!latestEvent) {
     store.dispatch(
       setBatteryState({
         batteryVoltage: batteryVoltage,
@@ -150,12 +202,13 @@ const getNewVoltage = (soc) => {
 
 const getNewChargeCurrent = (power, voltage) => {
   const maxChargePower = store.getState().data.batterySettings.maxChargePower;
-  const chargeClearance = store.getState().data.DPS.chargeClearance;
+  const chargeClearance = parseFloat(store.getState().data.DPS.chargeClearance);
+  console.log(power, chargeClearance);
 
-  return (power * 1000) / voltage > (maxChargePower * 1000) / voltage // current should not be greater than max power current
-    ? (maxChargePower * 1000) / voltage
-    : (power * 1000) / voltage < (chargeClearance * 1000) / voltage // current should not be less than the charge clearance UNLESS the power level comes from an event (?)
+  return power < chargeClearance || maxChargePower < chargeClearance // current should not be less than the charge clearance UNLESS the power level comes from an event (?)
     ? 0
+    : power > maxChargePower // current should not be greater than max power current
+    ? (maxChargePower * 1000) / voltage
     : (power * 1000) / voltage; // because power (W) = voltage (V) * current (A), scale power from kW to W
 };
 
@@ -163,18 +216,16 @@ const getNewDischargeCurrent = (power, voltage) => {
   const maxDischargePower =
     store.getState().data.batterySettings.maxDischargePower;
 
-  return (power * 1000) / voltage > (maxDischargePower * 1000) / voltage // current should not be greater than max power current
+  return power > maxDischargePower // current should not be greater than max power current
     ? (maxDischargePower * 1000) / voltage
     : (power * 1000) / voltage; // because power (W) = voltage (V) * current (A), scale power from kW to W
 };
 
 const chargeBattery = (date, power) => {
-  console.log("CHARGING " + power + " kW!");
   const { batteryVoltage, batteryCurrent, batterySOC, batteryAmpHours } =
     store.getState().data.batteryState;
 
-  const { maxAmpHours, maxChargePower } = store.getState().data.batterySettings;
-  const chargeClearance = store.getState().data.DPS.chargeClearance;
+  const { maxAmpHours } = store.getState().data.batterySettings;
 
   const currentAdded = getNewChargeCurrent(power, batteryVoltage);
   const ampHoursAdded = (minutesBetween(oldDate, date) / 60) * currentAdded; // because amp-hours (Ah) = current (A) * hours (h), scale minutes to hours
@@ -202,8 +253,6 @@ const chargeBattery = (date, power) => {
       batteryCurrent:
         newSOC >= 100 // state of charge should not be greater than 100, so halt the charge if it gets to 100
           ? 0
-          : newCurrent < (-maxChargePower * 1000) / newVoltage // battery should not charge at a higher power than the maximum power
-          ? (-maxChargePower * 1000) / newVoltage
           : newCurrent,
       batterySOC: newSOC,
       batteryAmpHours: newAmpHours,
@@ -212,7 +261,7 @@ const chargeBattery = (date, power) => {
 };
 
 const dischargeBattery = (date, power) => {
-  console.log("DISCHARGING " + power + " kW!");
+  console.log("DISCHARGING AT " + power + " kW!");
   const { batteryVoltage, batteryCurrent, batterySOC, batteryAmpHours } =
     store.getState().data.batteryState;
 
@@ -239,12 +288,7 @@ const dischargeBattery = (date, power) => {
   store.dispatch(
     setBatteryState({
       batteryVoltage: newVoltage,
-      batteryCurrent:
-        newSOC <= 0
-          ? 0
-          : newCurrent > (maxDischargePower * 1000) / newVoltage
-          ? (maxDischargePower * 1000) / newVoltage
-          : newCurrent,
+      batteryCurrent: newSOC <= 0 ? 0 : newCurrent,
       batterySOC: newSOC,
       batteryAmpHours: newAmpHours,
     })

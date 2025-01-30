@@ -49,7 +49,7 @@ function CSVField({ setFunction }) {
         const batteryStats = []; // contents are created in parsedPower mapping
         const parsedPower = parsedContent.map((datum) => {
           const date = new Date(
-            +new Date(datum[0]) + +new Date(1000 * 60 * 60 * 5) // timezone -5:00 GMT
+            +new Date(datum[0]) // + +new Date(1000 * 60 * 60 * 5) // timezone -5:00 GMT
           ).toString();
           const power = +datum[1] ? +datum[1] : NaN;
           batteryStats.push({

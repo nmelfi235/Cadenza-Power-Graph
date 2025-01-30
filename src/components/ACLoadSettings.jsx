@@ -25,6 +25,7 @@ export default function ACLoadSettings() {
       <h4>AC Load Settings</h4>
       <label htmlFor="ac-load-power-input">AC Load Power:</label>
       <div className="input-group">
+        {/*UPS Only*/}
         <input
           id="ac-load-power-input"
           placeholder={acLoadPower}

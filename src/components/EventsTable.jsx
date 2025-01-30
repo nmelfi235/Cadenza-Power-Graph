@@ -142,6 +142,7 @@ function Modal({ openModal, closeModal }) {
               className="form-control"
               type="number"
               name="powerLevel"
+              step="any"
             ></input>
             <div className="input-group-text">kW</div>
           </div>
