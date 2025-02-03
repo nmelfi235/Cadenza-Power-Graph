@@ -41,7 +41,6 @@ function CSVField({ setFunction }) {
             current: current,
           };
         });
-        setFunction(parsedPower);
         dispatch(setBatteryProfile(parsedPower));
       };
       reader.readAsText(file);
@@ -183,7 +182,7 @@ function LinePlot({
             .attr("stroke-opacity", 0.1)
             .attr("stroke-dasharray", [8, 10])
         ),
-    [xAxis, x]
+    [data, xAxis, x]
   );
 
   // Add the y-axis to the container.
@@ -210,7 +209,7 @@ function LinePlot({
             .attr("text-anchor", "start")
             .text("Voltage (V)")
         ),
-    [voltageYAxis, voltageY]
+    [data, voltageYAxis, voltageY]
   );
 
   const voltageMissingLine = useRef(d3.create("path"));
@@ -223,7 +222,7 @@ function LinePlot({
         .attr("stroke-width", 1.5)
         .attr("stroke-dasharray", [10, 8])
         .attr("d", voltageLine(data.filter((d) => !isNaN(d.voltage)))),
-    [voltageMissingLine, voltageLine]
+    [data, voltageMissingLine, voltageLine]
   );
 
   const voltageRealLine = useRef(d3.create("path"));
@@ -235,7 +234,7 @@ function LinePlot({
         .attr("stroke", "steelblue")
         .attr("stroke-width", 1.5)
         .attr("d", voltageLine(data)),
-    [voltageRealLine, voltageLine]
+    [data, voltageRealLine, voltageLine]
   );
 
   const currentYAxis = useRef(d3.create("g"));
@@ -255,7 +254,7 @@ function LinePlot({
         .attr("fill", "currentColor")
         .attr("text-anchor", "start")
         .text("Current (A)"),
-    [currentYAxis, currentY]
+    [data, currentYAxis, currentY]
   );
 
   const currentMissingLine = useRef(d3.create("path"));
@@ -268,7 +267,7 @@ function LinePlot({
         .attr("stroke-width", 1.5)
         .attr("stroke-dasharray", [10, 8])
         .attr("d", currentLine(data.filter((d) => !isNaN(d.current)))),
-    [currentMissingLine, currentLine]
+    [data, currentMissingLine, currentLine]
   );
 
   const currentRealLine = useRef(d3.create("path"));
@@ -280,7 +279,7 @@ function LinePlot({
         .attr("stroke", "green")
         .attr("stroke-width", 1.5)
         .attr("d", currentLine(data)),
-    [currentRealLine, currentLine]
+    [data, currentRealLine, currentLine]
   );
 
   const zoomFunction = (e) => {};
@@ -316,21 +315,13 @@ function LinePlot({
 }
 
 export default function BatteryPowerTools({ className, style }) {
-  const batteryProfile = useSelector((state) => state.data.batteryProfile);
-  const [data, setData] = useState([
-    { date: new Date(0), voltage: 53, current: 80 },
-    {
-      date: new Date(+new Date(0) + +new Date(1000 * 60 * 60 * 24)).toString(),
-      voltage: 53,
-      current: 80,
-    },
-  ]);
+  const data = useSelector((state) => state.data.batteryProfile);
 
   return (
     <div className={className} style={style}>
       <h2>Battery Power</h2>
-      <CSVField setFunction={setData} />
-      <LinePlot data={batteryProfile} />
+      <CSVField />
+      {data.length > 0 ? <LinePlot data={data} /> : <></>}
       <DownloadButton
         chartData="batteryProfile"
         fileName="Battery_Profile.csv"

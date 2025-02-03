@@ -19,7 +19,7 @@ import BatterySettings from "./BatterySettings.jsx";
 import ACLoadSettings from "./ACLoadSettings.jsx";
 
 // This component is the form where the .csv file will be inputthen parsed and sent to the redux store for use in other components.
-function CSVField({ setFunction }) {
+function CSVField() {
   const [file, setFile] = useState(null);
   const dispatch = useDispatch();
   const PGOAL = useSelector((state) => state.data.DPS.pGoal);
@@ -67,7 +67,6 @@ function CSVField({ setFunction }) {
             SOC: store.getState().data.batteryState.batterySOC,
           };
         });
-        setFunction(parsedPower);
         dispatch(setBuildingData(parsedPower));
         dispatch(setBatteryProfile(batteryStats));
       };
@@ -124,6 +123,22 @@ function LinePlot({
   marginLeft = 30,
   colors,
 }) {
+  d3.select("#power-graph").selectAll("g").remove();
+  const svgRef = useRef(d3.create("svg"));
+  useEffect(() => {
+    d3.select(svgRef.current)
+      .attr("id", "power-graph")
+      .attr("preserveAspectRatio", "xMinYMin meet")
+      .attr(
+        "viewBox",
+        `0 0 ${width + marginLeft + marginRight} ${
+          height + marginBottom + marginTop
+        }`
+      )
+      .on("pointerenter pointermove", pointerMoved)
+      .on("pointerleave", pointerLeft);
+  }, [data, svgRef]);
+
   // X Scale declaration (Domain is start thru end date, range is physical screen space)
   const x = d3.scaleTime(
     d3.extent(data, (d) => Date.parse(d.date)),
@@ -131,36 +146,24 @@ function LinePlot({
   );
 
   // Y Scale declaration (Domain is min to max power, range is physical screen space)
+  const valsList = data.flatMap((d) => [
+    ...Object.keys(d)
+      .filter((k) => k !== "date" && k !== "SOC")
+      .map((k) => d[k]),
+  ]);
   const y = d3.scaleLinear(
-    [
-      d3.min(data, (d) => {
-        let valsList = [];
-        for (const property in d) {
-          if (property !== "date" && property !== "SOC")
-            valsList.push(d[property]);
-        }
-        return d3.min(valsList);
-      }),
-      d3.max(data, (d) => {
-        let valsList = [];
-        for (const property in d) {
-          if (property !== "date" && property !== "SOC")
-            valsList.push(d[property]);
-        }
-        return d3.max(valsList);
-      }),
-    ],
+    [d3.min(valsList), d3.max(valsList)],
     [height - marginBottom, marginTop]
   );
 
   const socY = d3.scaleLinear([0, 100], [height - marginBottom, marginTop]);
 
   // Add the x-axis to the container.
-  const xAxis = useRef(d3.create("g"));
   useEffect(
     () =>
       void d3
-        .select(xAxis.current)
+        .select(svgRef.current)
+        .append("g")
         .attr("transform", `translate(0, ${height - marginBottom})`)
         .call(
           d3
@@ -176,15 +179,15 @@ function LinePlot({
             .attr("stroke-opacity", 0.1)
             .attr("stroke-dasharray", [8, 10])
         ),
-    [xAxis, x]
+    [data, svgRef, x]
   );
 
   // Add the y-axis to the container.
-  const yAxis = useRef(d3.create("g"));
   useEffect(
     () =>
       void d3
-        .select(yAxis.current)
+        .select(svgRef.current)
+        .append("g")
         .attr("transform", `translate(${marginLeft}, 0)`)
         .call(d3.axisLeft(y).ticks(height / 40, ".1f"))
         .call((g) => g.select(".domain").remove())
@@ -200,13 +203,13 @@ function LinePlot({
         .attr("fill", "currentColor")
         .attr("text-anchor", "start")
         .text("Power (kW)"),
-    [yAxis, y]
+    [data, svgRef, y]
   );
 
-  const yAxisSOC = useRef(d3.create("g"));
   useEffect(() => {
     void d3
-      .select(yAxisSOC.current)
+      .select(svgRef.current)
+      .append("g")
       .attr("transform", `translate(${width - marginRight}, 0)`)
       .call(d3.axisRight(socY).ticks(height / 40, ".1f"))
       .call((g) => g.select(".domain").remove())
@@ -216,31 +219,31 @@ function LinePlot({
       .attr("fill", "currentColor")
       .attr("text-anchor", "start")
       .text("SOC (%)");
-  }, [yAxis, y]);
+  }, [data, svgRef, y]);
 
-  const tooltip = useRef(d3.create("g"));
   const bisect = d3.bisector((d) => new Date(d.date)).center; // function that gets the
   const pointerMoved = (e) => {
+    d3.select("#tooltip").remove();
     const i = bisect(data, x.invert(d3.pointer(e)[0]));
 
-    void d3
-      .select(tooltip.current)
+    const tooltip = d3
+      .select(svgRef.current)
+      .append("g")
       .style("display", null)
       .attr(
         "transform",
         `translate(${d3.pointer(e)[0]},${d3.pointer(e)[1] + 15})`
-      );
+      )
+      .attr("id", "tooltip");
 
-    const path = d3
-      .select(tooltip.current)
+    const path = tooltip
       .selectAll("path")
       .data([,])
       .join("path")
       .attr("fill", "white")
       .attr("stroke", "black");
 
-    const text = d3
-      .select(tooltip.current)
+    const text = tooltip
       .selectAll("text")
       .data([,])
       .join("text")
@@ -268,10 +271,11 @@ function LinePlot({
       );
 
     size(text, path);
+    d3.select("#tooltip").exit().remove();
   };
 
   function pointerLeft() {
-    d3.select(tooltip.current).style("display", "none");
+    d3.select("#tooltip").style("display", "none");
   }
 
   function size(text, path) {
@@ -283,7 +287,8 @@ function LinePlot({
     );
   }
 
-  const drawLine = (property, missingRef, realRef) => {
+  const drawLine = (property) => {
+    const lines = d3.select(svgRef.current).append("g");
     // Line generator (Draws line only showing points that are not missing, hiding the missing points)
     const line = d3
       .line()
@@ -291,114 +296,53 @@ function LinePlot({
       .x((d) => x(Date.parse(d.date)))
       .y((d) => y(d[property]));
 
-    useEffect(
-      () =>
-        void d3
-          .select(missingRef.current)
-          .attr("class", property)
-          .attr("fill", "none")
-          .attr("stroke", "#ccc")
-          .attr("stroke-width", 1.5)
-          .attr("stroke-dasharray", [10, 8])
-          .attr("d", line(data.filter((d) => !isNaN(d[property])))),
-      [missingRef, line]
-    );
+    lines
+      .append("path")
+      .attr("class", property)
+      .attr("fill", "none")
+      .attr("stroke", "#ccc")
+      .attr("stroke-width", 1.5)
+      .attr("stroke-dasharray", [10, 8])
+      .attr("d", line(data.filter((d) => !isNaN(d[property]))));
 
-    useEffect(
-      () =>
-        void d3
-          .select(realRef.current)
-          .attr("class", property)
-          .attr("fill", "none")
-          .attr("stroke", colors[property ? property : 0])
-          .attr("stroke-width", 1.5)
-          .attr("d", line(data)),
-      [realRef, line]
-    );
+    lines
+      .append("path")
+      .attr("class", property)
+      .attr("fill", "none")
+      .attr("stroke", colors[property ? property : 0])
+      .attr("stroke-width", 1.5)
+      .attr("d", line(data));
   };
-  const missingPActual = useRef(d3.create("path"));
-  const realPActual = useRef(d3.create("path"));
-  drawLine("pActual", missingPActual, realPActual);
 
-  const BESSCheck = useSelector((state) => state.data.batteryProfile);
-  const missingPBESS = useRef(d3.create("path"));
-  const realPBESS = useRef(d3.create("path"));
-  drawLine("pBESS", missingPBESS, realPBESS);
+  useEffect(() => {
+    // Percentage axis
+    const line = d3
+      .line()
+      .defined((d) => !isNaN(d["pActual"]))
+      .x((d) => x(Date.parse(d.date)))
+      .y((d) => socY(d["SOC"]));
 
-  const missingPBuilding = useRef(d3.create("path"));
-  const realPBuilding = useRef(d3.create("path"));
-  drawLine("pBuilding", missingPBuilding, realPBuilding);
+    d3.select("#SOCLine").remove();
+    d3.select(svgRef.current)
+      .append("path")
+      .attr("class", "SOC")
+      .attr("fill", "none")
+      .attr("stroke", colors["SOC"])
+      .attr("stroke-width", 1.5)
+      .attr("d", line(data))
+      .attr("id", "SOCLine");
 
-  const missingPMeter = useRef(d3.create("path"));
-  const realPMeter = useRef(d3.create("path"));
-  drawLine("pMeter", missingPMeter, realPMeter);
+    // Power axis
+    for (const key in data[0]) if (key !== "date") drawLine(key);
+  }, [data, svgRef]);
 
-  const missingPGoal = useRef(d3.create("path"));
-  const realPGoal = useRef(d3.create("path"));
-  drawLine("pGoal", missingPGoal, realPGoal);
+  d3.select(svgRef.current).exit().remove();
 
-  const SOCref = useRef(d3.create("path"));
-  const SOCline = d3
-    .line()
-    .defined((d) => !isNaN(d["pActual"]))
-    .x((d) => x(Date.parse(d.date)))
-    .y((d) => socY(d.SOC));
-
-  useEffect(
-    () =>
-      void d3
-        .select(SOCref.current)
-        .attr("class", "SOC")
-        .attr("fill", "none")
-        .attr("stroke", colors["SOC"])
-        .attr("stroke-opacity", 0.6)
-        .attr("stroke-width", 1.5)
-        .attr("stroke-dasharray", [10, 8])
-        .attr("d", SOCline(data.filter((d) => !isNaN(d.SOC)))),
-    [SOCref, SOCline]
-  );
-
-  const svgRef = useRef(null);
-  d3.select(svgRef.current)
-    .attr("preserveAspectRatio", "xMinYMin meet")
-    .attr(
-      "viewBox",
-      `0 0 ${width + marginLeft + marginRight} ${
-        height + marginBottom + marginTop
-      }`
-    )
-    .on("pointerenter pointermove", pointerMoved)
-    .on("pointerleave", pointerLeft);
-
-  return (
-    <>
-      <svg ref={svgRef}>
-        <g ref={xAxis} />
-        <g ref={yAxis} />
-        <g ref={yAxisSOC} />
-        <g>
-          <path ref={missingPGoal} />
-          <path ref={realPGoal} />
-          <path ref={missingPActual} />
-          <path ref={realPActual} />
-          <path ref={missingPBESS} />
-          <path ref={realPBESS} />
-          <path ref={missingPBuilding} />
-          <path ref={realPBuilding} />
-          <path ref={missingPMeter} />
-          <path ref={realPMeter} />
-          <path ref={SOCref} />
-        </g>
-        <g ref={tooltip} />
-      </svg>
-    </>
-  );
+  return <svg ref={svgRef} />;
 }
 
 export default function BuildingPowerTools({ className, style }) {
-  const [data, setData] = useState(
-    useSelector((state) => state.data.buildingPower)
-  );
+  const data = useSelector((state) => state.data.buildingPower);
   const colors = {
     pActual: "lightgreen",
     pBESS: "darkblue",
@@ -417,7 +361,7 @@ export default function BuildingPowerTools({ className, style }) {
       >
         <p className="lead">Step 1: Adjust settings as needed.</p>
         <div className="d-flex flex-row justify-content-center">
-          <DPSSettings setFunction={setData} />
+          <DPSSettings />
           <BatterySettings />
           <ACLoadSettings />
         </div>
@@ -430,7 +374,7 @@ export default function BuildingPowerTools({ className, style }) {
         <p className="lead my-2">
           Step 2: Upload a csv file with the date and building power.
         </p>
-        <CSVField setFunction={setData} />
+        <CSVField />
       </div>
       <div
         className="d-flex flex-column w-100 h-50 align-items-center border-top my-2"

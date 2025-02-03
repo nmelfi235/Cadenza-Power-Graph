@@ -2,7 +2,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { setDPSProperty } from "../dataSlice";
 import { useEffect } from "react";
 
-export default function DPSSettings({ setFunction }) {
+export default function DPSSettings() {
   const dispatch = useDispatch();
   const data = useSelector((state) => state.data.buildingPower);
 
@@ -34,7 +34,6 @@ export default function DPSSettings({ setFunction }) {
             dispatch(
               setDPSProperty({ property: "pGoal", value: e.target.value })
             );
-            setFunction(data);
           }}
           className="form-control"
           data-bs-toggle="tooltip"
@@ -58,7 +57,6 @@ export default function DPSSettings({ setFunction }) {
                 value: e.target.value,
               })
             );
-            setFunction(data);
           }}
           className="form-control"
           data-bs-toggle="tooltip"
@@ -82,7 +80,6 @@ export default function DPSSettings({ setFunction }) {
                 value: e.target.value,
               })
             );
-            setFunction(data);
           }}
           className="form-control"
           data-bs-toggle="tooltip"
@@ -103,7 +100,6 @@ export default function DPSSettings({ setFunction }) {
             dispatch(
               setDPSProperty({ property: "scanTime", value: e.target.value })
             );
-            setFunction(data);
           }}
           className="form-control"
           data-bs-toggle="tooltip"
