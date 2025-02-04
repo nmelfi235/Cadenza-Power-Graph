@@ -376,23 +376,29 @@ export default function BuildingPowerTools({ className, style }) {
         </p>
         <CSVField />
       </div>
-      <div
-        className="d-flex flex-column w-100 h-50 align-items-center border-top my-2"
-        data-section
-        style={{ "--section-num": 3 }}
-      >
-        <h2 className="display-6 my-2">Building Power</h2>
-        <LinePlot data={data} colors={colors} />
-        <Legend data={data} colors={colors} />
-      </div>
-      <div
-        className="d-flex flex-column align-items-center border-top my-2"
-        data-section
-        style={{ "--section-num": 4 }}
-      >
-        <p className="lead my-2">Step 3: Download your projected data.</p>
-        <DownloadButton chartData="buildingPower" fileName="DPS_Data.csv" />
-      </div>
+      {data.length > 0 ? (
+        <>
+          <div
+            className="d-flex flex-column w-100 h-50 align-items-center border-top my-2"
+            data-section
+            style={{ "--section-num": 3 }}
+          >
+            <h2 className="display-6 my-2">Building Power</h2>
+            <LinePlot data={data} colors={colors} />
+            <Legend data={data} colors={colors} />
+          </div>
+          <div
+            className="d-flex flex-column align-items-center border-top my-2"
+            data-section
+            style={{ "--section-num": 4 }}
+          >
+            <p className="lead my-2">Step 3: Download your projected data.</p>
+            <DownloadButton chartData="buildingPower" fileName="DPS_Data.csv" />
+          </div>
+        </>
+      ) : (
+        <></>
+      )}
     </div>
   );
 }

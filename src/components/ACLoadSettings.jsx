@@ -6,20 +6,6 @@ export default function ACLoadSettings() {
   const dispatch = useDispatch();
   const acLoadPower = useSelector((state) => state.data.ACLoadPower);
 
-  /*
-  // Enable bootstrap tooltips
-  useEffect(() => {
-    const tooltipTriggerList = document.querySelectorAll(
-      '[data-bs-toggle="tooltip"]'
-    );
-    const tooltipList = [...tooltipTriggerList].map(
-      (tooltipTriggerEl) => new bootstrap.Tooltip(tooltipTriggerEl)
-    );
-    return () => {
-      tooltipList.map((t) => t.dispose());
-    };
-  }, []);*/
-
   return (
     <div className="card form-row mx-2 my-1 px-3 py-2" style={{ width: 200 }}>
       <h4>AC Load Settings</h4>

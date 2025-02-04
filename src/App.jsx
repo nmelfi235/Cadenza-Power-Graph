@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import BuildingPowerTools from "./components/BuildingPowerTools.jsx";
 import BatteryPowerTools from "./components/BatteryPowerTools.jsx";
 import "./index.css";
@@ -5,6 +6,19 @@ import EventsTable from "./components/EventsTable.jsx";
 import StateOfCarbon from "./components/StateOfCarbon.jsx";
 
 export default function App() {
+  // Enable bootstrap tooltips
+  useEffect(() => {
+    const tooltipTriggerList = document.querySelectorAll(
+      '[data-bs-toggle="tooltip"]'
+    );
+    const tooltipList = [...tooltipTriggerList].map(
+      (tooltipTriggerEl) => new bootstrap.Tooltip(tooltipTriggerEl)
+    );
+    return () => {
+      tooltipList.map((t) => t.dispose());
+    };
+  }, []);
+
   return (
     <div
       id="app"

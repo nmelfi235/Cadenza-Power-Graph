@@ -12,7 +12,7 @@ TODO:
 */
 
 // This component is the form where the .csv file will be inputthen parsed and sent to the redux store for use in other components.
-function CSVField({ setFunction }) {
+function CSVField() {
   const dispatch = useDispatch();
   const startDate = useSelector((state) => state.data.buildingPower[0].date);
 
@@ -321,11 +321,17 @@ export default function BatteryPowerTools({ className, style }) {
     <div className={className} style={style}>
       <h2>Battery Power</h2>
       <CSVField />
-      {data.length > 0 ? <LinePlot data={data} /> : <></>}
-      <DownloadButton
-        chartData="batteryProfile"
-        fileName="Battery_Profile.csv"
-      />
+      {data.length > 0 ? (
+        <>
+          <LinePlot data={data} />
+          <DownloadButton
+            chartData="batteryProfile"
+            fileName="Battery_Profile.csv"
+          />
+        </>
+      ) : (
+        <></>
+      )}
     </div>
   );
 }
