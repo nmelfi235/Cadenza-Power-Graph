@@ -50,7 +50,10 @@ export const pBESS = (currentDate, powerActual) => {
   const goal = store.getState().data.DPS.pGoal;
 
   // Reset battery when graph is reset (oldDate is after current date when graph is reset)
-  if (oldDate === null || oldDate > currentDate) {
+  if (oldDate === null || minutesBetween(oldDate, currentDate) < 0) {
+    console.error(
+      "NULL DATE!!" + oldDate + currentDate + (oldDate > currentDate)
+    );
     oldDate = currentDate;
     const batterySettings = store.getState().data.batterySettings;
     store.dispatch(
@@ -96,18 +99,9 @@ export const pMeter = (date, powerActual) => {
   return pLast;
 };
 
-// Function tree-- calcBatteryState determines whether the battery should be charging, discharging, or idle.
-// First, check if battery should charge-- if DPS flag is on, skip this step. If power > goal, skip this step. If charge is already full, skip this step.
-//  If battery should charge, go to charge function.
-//    If requested power level > battery power capacity then set power level to match capacity.
-// Next, check if battery should discharge-- if battery is empty, skip this step.
-//  If requested power level > battery power capacity then set power level to match capacity.
-export const calcBatteryState = (date, powerFromGoal) => {
-  const { batteryVoltage, batteryCurrent, batterySOC, batteryAmpHours } =
-    store.getState().data.batteryState;
-  const eventList = store.getState().data.events;
+const getLatestEvent = (date, eventList) => {
   const dateHHMM = [new Date(date).getHours(), new Date(date).getMinutes()];
-  const latestEvent = eventList.reduce((currentEvent, event) => {
+  return eventList.reduce((currentEvent, event) => {
     const startTime = event.startTime.split(":").map((el) => parseInt(el));
     const endTime = event.endTime.split(":").map((el) => parseInt(el));
 
@@ -125,6 +119,7 @@ export const calcBatteryState = (date, powerFromGoal) => {
       (dateHHMM[0] === endTime[0] && dateHHMM[1] < endTime[1]);
     const sameStartEndTime =
       startTime[0] === endTime[0] && startTime[1] === endTime[1];
+
     if (dayTimeEvent && afterStartTime && beforeEndTime && !sameStartEndTime) {
       // Daytime event, after start time (morning), before end time (evening)
       return event;
@@ -137,7 +132,19 @@ export const calcBatteryState = (date, powerFromGoal) => {
     }
     return currentEvent;
   }, null);
-  console.log(dateHHMM, latestEvent);
+};
+
+// Function tree-- calcBatteryState determines whether the battery should be charging, discharging, or idle.
+// First, check if battery should charge-- if DPS flag is on, skip this step. If power > goal, skip this step. If charge is already full, skip this step.
+//  If battery should charge, go to charge function.
+//    If requested power level > battery power capacity then set power level to match capacity.
+// Next, check if battery should discharge-- if battery is empty, skip this step.
+//  If requested power level > battery power capacity then set power level to match capacity.
+export const calcBatteryState = (date, powerFromGoal) => {
+  const { batteryVoltage, batteryCurrent, batterySOC, batteryAmpHours } =
+    store.getState().data.batteryState;
+  const eventList = store.getState().data.events;
+  const latestEvent = getLatestEvent(date, eventList);
 
   // First, check if battery should charge-- if DPS flag is on, skip this step. If power > goal, skip this step. If charge is already full, skip this step.
   if (

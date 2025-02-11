@@ -51,7 +51,9 @@ function CSVField() {
           const date = new Date(
             +new Date(datum[0]) // + +new Date(1000 * 60 * 60 * 5) // timezone -5:00 GMT
           ).toString();
-          const power = +datum[1] ? +datum[1] : NaN;
+          const power = !isNaN(parseFloat(datum[1]))
+            ? parseFloat(datum[1])
+            : NaN;
           batteryStats.push({
             date: date,
             voltage: store.getState().data.batteryState.batteryVoltage,
@@ -115,12 +117,12 @@ function CSVField() {
 // This component generates a line plot. Modified D3 sample line plot for react.
 function LinePlot({
   data,
-  width = 1000,
-  height = 500,
-  marginTop = 20,
-  marginRight = 30,
-  marginBottom = 30,
-  marginLeft = 30,
+  width = 1200,
+  height = 700,
+  marginTop = 50,
+  marginRight = 50,
+  marginBottom = 50,
+  marginLeft = 50,
   colors,
 }) {
   d3.select("#power-graph").selectAll("g").remove();
@@ -333,7 +335,8 @@ function LinePlot({
       .attr("id", "SOCLine");
 
     // Power axis
-    for (const key in data[0]) if (key !== "date") drawLine(key);
+    for (const key in data[0])
+      if (key !== "date" && key !== "SOC") drawLine(key);
   }, [data, svgRef]);
 
   d3.select(svgRef.current).exit().remove();

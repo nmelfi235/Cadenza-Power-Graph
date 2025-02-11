@@ -1,5 +1,31 @@
 import { useRef, useEffect, useState } from "react";
 import * as d3 from "d3";
+import * as Plot from "@observablehq/plot";
+import CurrentStateGraph from "./CurrentStateGraph";
+import GridLoadGraph from "./GridLoadGraph";
+
+function PlotLineGraph({ data }) {
+  const mappedData = data.map((dataArray) => 0);
+  const plotRef = useRef(d3.create("svg"));
+  useEffect(() => {
+    const chart = Plot.plot({
+      style: "overflow: visible;",
+      y: { grid: true },
+      marks: [
+        Plot.ruleY([0]),
+        Plot.lineY(data, {
+          x: "Date",
+          y: "Emissions",
+          z: "FuelCategory",
+        }),
+      ],
+    });
+    plotRef.current.append(chart);
+    return () => chart.remove();
+  }, [data]);
+
+  return <div ref={plotRef} />;
+}
 
 // Data must be pre-processed before being input into LineGraph
 function LineGraph({
@@ -201,7 +227,7 @@ function StateOfCarbon({ className, style }) {
       <h1 className="text-center display-6">
         Estimated CO<sub>2</sub> Emissions
       </h1>
-      <ul className="d-flex flex-wrap justify-content-center list-inline">
+      {/*<ul className="d-flex flex-wrap justify-content-center list-inline">
         {Object.keys(currentData).length > 0 ? (
           Object.keys(currentData).map((el, i) => (
             <li
@@ -215,13 +241,17 @@ function StateOfCarbon({ className, style }) {
         ) : (
           <></>
         )}
-      </ul>
+      </ul>*/}
       <div className="text-center">
+        {" "}
         {data.length > 0 ? (
           <LineGraph data={data} colors={colors} height={800} />
         ) : (
           <></>
         )}
+        <CurrentStateGraph />
+        <GridLoadGraph />
+        {/*data.length > 0 ? <PlotLineGraph data={data} /> : <></>*/}
       </div>
     </div>
   );
