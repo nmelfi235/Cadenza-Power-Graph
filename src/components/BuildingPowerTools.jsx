@@ -139,6 +139,12 @@ function LinePlot({
       )
       .on("pointerenter pointermove", pointerMoved)
       .on("pointerleave", pointerLeft);
+    /*.call(
+        d3.brushX().extent([
+          [marginLeft, marginTop],
+          [width - marginRight, height - marginBottom],
+        ])
+      )*/
   }, [data, svgRef]);
 
   // X Scale declaration (Domain is start thru end date, range is physical screen space)

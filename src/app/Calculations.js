@@ -13,7 +13,7 @@ let DPSflag = false;
 
 // Helper function to calculate minutes between two dates
 const minutesBetween = (date0, date1) => {
-  return (new Date(date1) - new Date(date0)) / (1000 * 60);
+  return (Date.parse(date1) - Date.parse(date0)) / (1000 * 60);
 };
 
 // pGoal refers to the building power level that the DPS system is attempting to maintain and is described in more detail in Section 3.2
@@ -145,6 +145,27 @@ export const calcBatteryState = (date, powerFromGoal) => {
     store.getState().data.batteryState;
   const eventList = store.getState().data.events;
   const latestEvent = getLatestEvent(date, eventList);
+  const { endOfDay } = store.getState().data.DPS;
+  const { maxDischargePower } = store.getState().data.batterySettings;
+  const endOfToday = new Date(
+    new Date(date).getFullYear(),
+    new Date(date).getMonth(),
+    new Date(date).getDate(),
+    endOfDay,
+    0,
+    0,
+    0
+  );
+
+  // Full discharge at end of day overrides other events.
+  // if minutesLeft >= minutesBetween now and "end of day", then discharge at full power until "end of day".
+  if (
+    minutesLeft() >= minutesBetween(date, endOfToday) &&
+    minutesBetween(date, endOfToday) > 0
+  ) {
+    dischargeBattery(date, maxDischargePower);
+    return;
+  }
 
   // First, check if battery should charge-- if DPS flag is on, skip this step. If power > goal, skip this step. If charge is already full, skip this step.
   if (
@@ -210,7 +231,7 @@ const getNewVoltage = (soc) => {
 const getNewChargeCurrent = (power, voltage) => {
   const maxChargePower = store.getState().data.batterySettings.maxChargePower;
   const chargeClearance = parseFloat(store.getState().data.DPS.chargeClearance);
-  console.log(power, chargeClearance);
+  //console.log(power, chargeClearance);
 
   return power < chargeClearance || maxChargePower < chargeClearance // current should not be less than the charge clearance UNLESS the power level comes from an event (?)
     ? 0
@@ -268,7 +289,7 @@ const chargeBattery = (date, power) => {
 };
 
 const dischargeBattery = (date, power) => {
-  console.log("DISCHARGING AT " + power + " kW!");
+  //console.log("DISCHARGING AT " + power + " kW!");
   const { batteryVoltage, batteryCurrent, batterySOC, batteryAmpHours } =
     store.getState().data.batteryState;
 
@@ -299,5 +320,23 @@ const dischargeBattery = (date, power) => {
       batterySOC: newSOC,
       batteryAmpHours: newAmpHours,
     })
+  );
+};
+
+// minutesLeft function calculates how many minutes are left on the battery at a given power level.
+const minutesLeft = () => {
+  const { maxAmpHours, usableEnergy, stateOfHealth, maxDischargePower } =
+    store.getState().data.batterySettings;
+  const { batteryVoltage, batterySOC } = store.getState().data.batteryState;
+
+  // 60 (minutes per hour) * Max Capacity (kWh) * usable energy (% input by user on GUI) * SOC * SOH / maxDischargePower (kW) = minutes left (minutes)
+  return (
+    (60 *
+      maxAmpHours *
+      batteryVoltage *
+      (usableEnergy / 100) *
+      (batterySOC / 100) *
+      (stateOfHealth / 100)) /
+    (maxDischargePower * 1000)
   );
 };

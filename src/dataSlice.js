@@ -9,12 +9,15 @@ export const dataSlice = createSlice({
       chargeClearance: 0, // new feature where DPS won't initiate a charge if it is too close to the goal (kW)
       meterScanTime: 30,
       scanTime: 6,
+      endOfDay: 20,
     },
     batterySettings: {
       maxChargePower: 6,
       maxDischargePower: 6,
       maxAmpHours: 800,
       initialSOC: 100,
+      stateOfHealth: 100,
+      usableEnergy: 90,
     },
     batteryState: {
       batteryVoltage: 54,
