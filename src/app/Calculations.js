@@ -50,11 +50,15 @@ export const pBESS = (currentDate, powerActual) => {
   const goal = store.getState().data.DPS.pGoal;
 
   // Reset battery when graph is reset (oldDate is after current date when graph is reset)
-  if (oldDate === null || minutesBetween(oldDate, currentDate) < 0) {
+  if (oldDate === null || minutesBetween(oldDate, currentDate) <= 0) {
     console.error(
-      "NULL DATE!!" + oldDate + currentDate + (oldDate > currentDate)
+      "NULL DATE!!" +
+        oldDate +
+        currentDate +
+        minutesBetween(oldDate, currentDate)
     );
     oldDate = currentDate;
+    dpsStartDate = currentDate;
     const batterySettings = store.getState().data.batterySettings;
     store.dispatch(
       setBatteryState({
@@ -161,14 +165,13 @@ export const calcBatteryState = (date, powerFromGoal) => {
   // if minutesLeft >= minutesBetween now and "end of day", then discharge at full power until "end of day".
   if (
     minutesLeft() >= minutesBetween(date, endOfToday) &&
-    minutesBetween(date, endOfToday) > 0
+    minutesBetween(date, endOfToday) > 0 &&
+    batterySOC > 0
   ) {
     dischargeBattery(date, maxDischargePower);
-    return;
   }
-
   // First, check if battery should charge-- if DPS flag is on, skip this step. If power > goal, skip this step. If charge is already full, skip this step.
-  if (
+  else if (
     (latestEvent?.eventType !== "Discharge" &&
       latestEvent?.eventType === "Charge") ||
     (latestEvent?.eventType !== "Discharge" &&
@@ -211,10 +214,9 @@ export const calcBatteryState = (date, powerFromGoal) => {
         batteryVoltage: batteryVoltage,
         batteryCurrent: 0,
         batterySOC: 0,
-        batteryAmpHours: batteryAmpHours,
+        batteryAmpHours: 0, //batteryAmpHours,
       })
     );
-    return;
   }
 
   // Need to add more cases here-- DPS flag should be turned on when the battery is discharging, and after a set amount of time it returns to normal operation mode where the battery is allowed to charge.

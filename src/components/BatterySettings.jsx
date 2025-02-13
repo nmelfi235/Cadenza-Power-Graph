@@ -105,6 +105,54 @@ export default function BatterySettings() {
         />
         <div className="input-group-text">%</div>
       </div>
+      <label htmlFor="soh-input">State of Health:</label>
+      <div className="input-group">
+        <input
+          id="soh-input"
+          placeholder={settings.stateOfHealth}
+          type="number"
+          step="any"
+          onChange={(e) => {
+            e.preventDefault();
+            dispatch(
+              setBatterySetting({
+                property: "stateOfHealth",
+                value: +e.target.value,
+              })
+            );
+            console.log(settings);
+          }}
+          className="form-control"
+          data-bs-toggle="tooltip"
+          data-bs-placement="right"
+          title="State of Health (%)"
+        />
+        <div className="input-group-text">%</div>
+      </div>
+      <label htmlFor="usable-energy-input">Usable Energy:</label>
+      <div className="input-group">
+        <input
+          id="usable-energy-input"
+          placeholder={settings.usableEnergy}
+          type="number"
+          step="any"
+          onChange={(e) => {
+            e.preventDefault();
+            dispatch(
+              setBatterySetting({
+                property: "usableEnergy",
+                value: +e.target.value,
+              })
+            );
+            console.log(settings);
+          }}
+          className="form-control"
+          data-bs-toggle="tooltip"
+          data-bs-placement="right"
+          title="Percentage of Battery that is usable (%)"
+        />
+        <div className="input-group-text">%</div>
+      </div>
     </div>
   );
 }

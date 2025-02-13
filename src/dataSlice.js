@@ -9,7 +9,7 @@ export const dataSlice = createSlice({
       chargeClearance: 0, // new feature where DPS won't initiate a charge if it is too close to the goal (kW)
       meterScanTime: 30,
       scanTime: 6,
-      endOfDay: 20,
+      endOfDay: 0,
     },
     batterySettings: {
       maxChargePower: 6,
