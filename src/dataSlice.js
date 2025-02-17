@@ -4,12 +4,16 @@ export const dataSlice = createSlice({
   name: "data",
   initialState: {
     ACLoadPower: 0,
+    Arbitrage: {
+      startOfDischarge: 0,
+      endOfDischarge: 0,
+      usableEnergy: 90,
+    },
     DPS: {
       pGoal: 5,
       chargeClearance: 0, // new feature where DPS won't initiate a charge if it is too close to the goal (kW)
       meterScanTime: 30,
       scanTime: 6,
-      endOfDay: 0,
     },
     batterySettings: {
       maxChargePower: 6,
@@ -17,7 +21,6 @@ export const dataSlice = createSlice({
       maxAmpHours: 800,
       initialSOC: 100,
       stateOfHealth: 100,
-      usableEnergy: 90,
     },
     batteryState: {
       batteryVoltage: 54,
@@ -75,6 +78,11 @@ export const dataSlice = createSlice({
       const { property, value } = data.payload;
       state.batterySettings[property] = value;
     },
+    setArbitrageProperty: (state, data) => {
+      const { property, value } = data.payload;
+      state.Arbitrage[property] = value;
+      console.log(property, value);
+    },
     setDPSProperty: (state, data) => {
       const { property, value } = data.payload;
       state.DPS[property] = value;
@@ -121,6 +129,7 @@ export const {
   setEventTable,
   insertEvent,
   setBatterySetting,
+  setArbitrageProperty,
   setDPSProperty,
   setBatteryState,
   resetBuildingData,

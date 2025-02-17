@@ -1,5 +1,5 @@
 import { useDispatch, useSelector } from "react-redux";
-import { setDPSProperty } from "../dataSlice";
+import { setDPSProperty } from "../../dataSlice";
 import { useEffect } from "react";
 
 export default function DPSSettings() {
@@ -107,26 +107,6 @@ export default function DPSSettings() {
           title="Scheduled Event Duration (m)"
         />
         <div className="input-group-text">min</div>
-      </div>
-      <label htmlFor="dps-end-of-day-input">End of Day: </label>
-      <div className="input-group">
-        <input
-          id="dps-end-of-day-input"
-          type="number"
-          step="any"
-          placeholder={useSelector((state) => state.data.DPS.endOfDay)}
-          onChange={(e) => {
-            e.preventDefault();
-            dispatch(
-              setDPSProperty({ property: "endOfDay", value: e.target.value })
-            );
-          }}
-          className="form-control"
-          data-bs-toggle="tooltip"
-          data-bs-placement="right"
-          title="End of Day for discharge (24h)"
-        />
-        <div className="input-group-text">:00</div>
       </div>
     </div>
   );

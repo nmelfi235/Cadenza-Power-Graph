@@ -1,5 +1,5 @@
 import { useDispatch, useSelector } from "react-redux";
-import { setACLoadPower } from "../dataSlice";
+import { setACLoadPower } from "../../dataSlice";
 import { useEffect } from "react";
 
 export default function ACLoadSettings() {

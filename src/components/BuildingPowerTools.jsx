@@ -13,10 +13,11 @@ import { useRef, useEffect, useState } from "react";
 import { pActual, pBuilding, pBESS, pMeter, pGoal } from "../app/Calculations";
 import { tickFormat } from "../app/Helpers";
 import DownloadButton from "./DownloadButton";
-import DPSSettings from "./DPSSettings.jsx";
+import DPSSettings from "./SettingsUI/DPSSettings.jsx";
 import Legend from "./Legend.jsx";
-import BatterySettings from "./BatterySettings.jsx";
-import ACLoadSettings from "./ACLoadSettings.jsx";
+import BatterySettings from "./SettingsUI/BatterySettings.jsx";
+import ACLoadSettings from "./SettingsUI/ACLoadSettings.jsx";
+import ArbitrageSettings from "./SettingsUI/ArbitrageSettings.jsx";
 
 // This component is the form where the .csv file will be inputthen parsed and sent to the redux store for use in other components.
 function CSVField() {
@@ -373,6 +374,7 @@ export default function BuildingPowerTools({ className, style }) {
           <DPSSettings />
           <BatterySettings />
           <ACLoadSettings />
+          <ArbitrageSettings />
         </div>
       </div>
       <div

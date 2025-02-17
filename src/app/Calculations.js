@@ -149,13 +149,22 @@ export const calcBatteryState = (date, powerFromGoal) => {
     store.getState().data.batteryState;
   const eventList = store.getState().data.events;
   const latestEvent = getLatestEvent(date, eventList);
-  const { endOfDay } = store.getState().data.DPS;
+  const { startOfDischarge, endOfDischarge } = store.getState().data.Arbitrage;
   const { maxDischargePower } = store.getState().data.batterySettings;
+  const startOfToday = new Date(
+    new Date(date).getFullYear(),
+    new Date(date).getMonth(),
+    new Date(date).getDate(),
+    startOfDischarge,
+    0,
+    0,
+    0
+  );
   const endOfToday = new Date(
     new Date(date).getFullYear(),
     new Date(date).getMonth(),
     new Date(date).getDate(),
-    endOfDay,
+    endOfDischarge,
     0,
     0,
     0
@@ -164,6 +173,7 @@ export const calcBatteryState = (date, powerFromGoal) => {
   // Full discharge at end of day overrides other events.
   // if minutesLeft >= minutesBetween now and "end of day", then discharge at full power until "end of day".
   if (
+    minutesBetween(startOfToday, date) >= 0 &&
     minutesLeft() >= minutesBetween(date, endOfToday) &&
     minutesBetween(date, endOfToday) > 0 &&
     batterySOC > 0
@@ -327,7 +337,8 @@ const dischargeBattery = (date, power) => {
 
 // minutesLeft function calculates how many minutes are left on the battery at a given power level.
 const minutesLeft = () => {
-  const { maxAmpHours, usableEnergy, stateOfHealth, maxDischargePower } =
+  const { usableEnergy } = store.getState().data.Arbitrage;
+  const { maxAmpHours, stateOfHealth, maxDischargePower } =
     store.getState().data.batterySettings;
   const { batteryVoltage, batterySOC } = store.getState().data.batteryState;
 
