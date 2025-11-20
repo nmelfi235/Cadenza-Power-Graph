@@ -1,5 +1,5 @@
 import store from "./store";
-import { setBatteryState, setDPSProperty } from "../dataSlice";
+import { setBatteryState, setDPSProperty, addEnergy } from "../dataSlice";
 // This file holds the calculations for each DPS line.
 
 // The DPS System evaluates its desired operation and power level every time interval tDPS.
@@ -11,9 +11,28 @@ let dpsStartDate = null; // This value is used to store the date value of when t
 let pLast = 0; // This value is used to keep the pMeter consistent.
 let DPSflag = false;
 
+export const resetData = () => {
+  oldDate = null;
+  dpsStartDate = null;
+
+  const batterySettings = store.getState().data.batterySettings;
+  store.dispatch(
+    setBatteryState({
+      batteryVoltage: getNewVoltage(batterySettings.initialSOC),
+      batteryCurrent: 0,
+      batterySOC: batterySettings.initialSOC,
+      batteryAmpHours:
+        batterySettings.maxAmpHours * (batterySettings.initialSOC / 100),
+    })
+  );
+};
+
 // Helper function to calculate minutes between two dates
 const minutesBetween = (date0, date1) => {
-  return (Date.parse(date1) - Date.parse(date0)) / (1000 * 60);
+  const dates = [new Date(date0), new Date(date1)];
+  const difference = (dates[1].getTime() - dates[0].getTime()) / (1000 * 60);
+  //console.log(difference);
+  return difference;
 };
 
 // pGoal refers to the building power level that the DPS system is attempting to maintain and is described in more detail in Section 3.2
@@ -50,25 +69,20 @@ export const pBESS = (currentDate, powerActual) => {
   const goal = store.getState().data.DPS.pGoal;
 
   // Reset battery when graph is reset (oldDate is after current date when graph is reset)
-  if (oldDate === null || minutesBetween(oldDate, currentDate) <= 0) {
+  if (oldDate === null) {
     console.error(
       "NULL DATE!!" +
         oldDate +
+        " " +
         currentDate +
-        minutesBetween(oldDate, currentDate)
+        minutesBetween(oldDate, currentDate) +
+        " " +
+        new Date(oldDate).getTimezoneOffset() +
+        " " +
+        new Date(currentDate).getTimezoneOffset()
     );
     oldDate = currentDate;
     dpsStartDate = currentDate;
-    const batterySettings = store.getState().data.batterySettings;
-    store.dispatch(
-      setBatteryState({
-        batteryVoltage: getNewVoltage(batterySettings.initialSOC),
-        batteryCurrent: 0,
-        batterySOC: batterySettings.initialSOC,
-        batteryAmpHours:
-          batterySettings.maxAmpHours * (batterySettings.initialSOC / 100),
-      })
-    );
   }
 
   // Charge/Discharge/Idle calculation is done in CalcBatteryState.
@@ -91,11 +105,10 @@ const pBESSNoEffects = (date, power) => {
 //   The time interval for the meter average varies depending on the tariff in use and is separate from the DPS timing.
 export const pMeter = (date, powerActual) => {
   const tMeter = store.getState().data.DPS.meterScanTime;
-  if (minutesBetween(new Date(date), tLast) >= 0) {
+  if (minutesBetween(date, tLast) >= 0) {
     tLast = new Date(0);
     pLast = 0;
-  }
-  if (minutesBetween(tLast, date) >= tMeter) {
+  } else if (minutesBetween(tLast, date) >= tMeter) {
     tLast = date;
     pLast = pBuilding(date, powerActual);
   }
@@ -262,12 +275,13 @@ const getNewDischargeCurrent = (power, voltage) => {
 };
 
 const chargeBattery = (date, power) => {
+  //console.log("CHARGING AT " + power + " kW");
   const { batteryVoltage, batteryCurrent, batterySOC, batteryAmpHours } =
     store.getState().data.batteryState;
-
+  const efficiency = 0.95;
   const { maxAmpHours } = store.getState().data.batterySettings;
 
-  const currentAdded = getNewChargeCurrent(power, batteryVoltage);
+  const currentAdded = getNewChargeCurrent(power, batteryVoltage) * efficiency;
   const ampHoursAdded = (minutesBetween(oldDate, date) / 60) * currentAdded; // because amp-hours (Ah) = current (A) * hours (h), scale minutes to hours
   const newAmpHours =
     batteryAmpHours + ampHoursAdded > maxAmpHours
@@ -288,6 +302,12 @@ const chargeBattery = (date, power) => {
     dpsStartDate = date;
 
   store.dispatch(
+    addEnergy({
+      type: "charge",
+      energy: (batteryVoltage * ampHoursAdded) / 1000 / efficiency,
+    })
+  );
+  store.dispatch(
     setBatteryState({
       batteryVoltage: newVoltage,
       batteryCurrent:
@@ -304,11 +324,12 @@ const dischargeBattery = (date, power) => {
   //console.log("DISCHARGING AT " + power + " kW!");
   const { batteryVoltage, batteryCurrent, batterySOC, batteryAmpHours } =
     store.getState().data.batteryState;
-
+  const efficiency = 0.95;
   const { maxAmpHours, maxDischargePower } =
     store.getState().data.batterySettings;
 
-  const currentRemoved = getNewDischargeCurrent(power, batteryVoltage);
+  const currentRemoved =
+    getNewDischargeCurrent(power, batteryVoltage) / efficiency;
   const ampHoursRemoved = (minutesBetween(oldDate, date) / 60) * currentRemoved; // because amp-hours (Ah) = current (A) * hours (h), scale minutes to hours
   const newAmpHours = batteryAmpHours - ampHoursRemoved;
   const newSOC = (newAmpHours / maxAmpHours) * 100;
@@ -325,6 +346,12 @@ const dischargeBattery = (date, power) => {
   if (minutesBetween(dpsStartDate, date) > store.getState().data.DPS.scanTime)
     dpsStartDate = date;
 
+  store.dispatch(
+    addEnergy({
+      type: "discharge",
+      energy: ((batteryVoltage * ampHoursRemoved) / 1000) * efficiency,
+    })
+  );
   store.dispatch(
     setBatteryState({
       batteryVoltage: newVoltage,

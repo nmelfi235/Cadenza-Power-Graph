@@ -28,7 +28,7 @@ export default function App() {
         className="p-4 d-flex flex-column align-items-left"
         style={{ height: "auto", width: 1200, verticalAlign: "center" }}
       />
-      <BatteryPowerTools
+      {/*<BatteryPowerTools
         className="card p-4 d-flex flex-column align-items-left"
         style={{ height: "auto", width: 1200, verticalAlign: "center" }}
       />
@@ -36,8 +36,8 @@ export default function App() {
         className="card p-4 d-flex flex-column align-items-left"
         style={{ height: 400, width: 900, verticalAlign: "center" }}
       />
-      {/* Note: The StateOfCarbon Graph needs to be connected to a backend that preprocesses the data from the NE ISO API */}
-      <StateOfCarbon className="card p-4 d-flex flex-column align-items-left" />
+      {/* Note: The StateOfCarbon Graph needs to be connected to a backend that preprocesses the data from the NE ISO API 
+      <StateOfCarbon className="card p-4 d-flex flex-column align-items-left" />*/}
     </div>
   );
 }

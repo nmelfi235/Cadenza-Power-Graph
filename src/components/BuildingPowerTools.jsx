@@ -5,12 +5,23 @@ import {
   setBatteryProfile,
   setBuildingData,
   setDPSProperty,
+  getPeakMeter,
+  getPeakPower,
+  getSOC,
+  getPeakBESS,
 } from "../dataSlice.js";
 import store from "../app/store.js";
 import { parse } from "papaparse";
 import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
 import { useRef, useEffect, useState } from "react";
-import { pActual, pBuilding, pBESS, pMeter, pGoal } from "../app/Calculations";
+import {
+  pActual,
+  pBuilding,
+  pBESS,
+  pMeter,
+  pGoal,
+  resetData,
+} from "../app/Calculations";
 import { tickFormat } from "../app/Helpers";
 import DownloadButton from "./DownloadButton";
 import DPSSettings from "./SettingsUI/DPSSettings.jsx";
@@ -18,6 +29,8 @@ import Legend from "./Legend.jsx";
 import BatterySettings from "./SettingsUI/BatterySettings.jsx";
 import ACLoadSettings from "./SettingsUI/ACLoadSettings.jsx";
 import ArbitrageSettings from "./SettingsUI/ArbitrageSettings.jsx";
+import PdfGen from "./PdfGen.jsx";
+import simplify from "simplify-js";
 
 // This component is the form where the .csv file will be inputthen parsed and sent to the redux store for use in other components.
 function CSVField() {
@@ -40,6 +53,9 @@ function CSVField() {
 
   const updateData = () => {
     if (file) {
+      resetData();
+      dispatch(resetBuildingData());
+      dispatch(resetBatteryProfile());
       const reader = new FileReader();
       reader.onload = (ev) => {
         const content = ev.target.result;
@@ -49,9 +65,9 @@ function CSVField() {
 
         const batteryStats = []; // contents are created in parsedPower mapping
         const parsedPower = parsedContent.map((datum) => {
-          const date = new Date(
-            +new Date(datum[0]) // + +new Date(1000 * 60 * 60 * 5) // timezone -5:00 GMT
-          ).toString();
+          const date = datum[0]; //new Date(datum[0]);
+          //  +new Date(datum[0]) // + +new Date(1000 * 60 * 60 * 5) // timezone -5:00 GMT
+          //).toString();
           const power = !isNaN(parseFloat(datum[1]))
             ? parseFloat(datum[1])
             : NaN;
@@ -62,12 +78,26 @@ function CSVField() {
           });
           return {
             date: date,
-            pActual: pActual(power),
-            pBuilding: pBuilding(date, power),
-            pBESS: pBESS(date, power),
-            pMeter: pMeter(date, power),
-            pGoal: pGoal(PGOAL),
-            SOC: store.getState().data.batteryState.batterySOC,
+            MeterData: (() => {
+              dispatch(getPeakPower({ power: power }));
+              return pActual(power);
+            })(),
+            //pBuilding: pBuilding(date, power),
+            BatteryPower: (() => {
+              let BESS = pBESS(date, power);
+              dispatch(getPeakBESS({ BESS: BESS }));
+              return BESS;
+            })(),
+            ProjectedMeter: (() => {
+              let meter = pMeter(date, power);
+              dispatch(getPeakMeter({ meter: meter }));
+              return meter;
+            })(),
+            PowerGoal: parseFloat(pGoal(PGOAL)),
+            SOC: (() => {
+              dispatch(getSOC());
+              return store.getState().data.batteryState.batterySOC;
+            })(),
           };
         });
         dispatch(setBuildingData(parsedPower));
@@ -97,7 +127,9 @@ function CSVField() {
         data-bs-toggle="tooltip"
         data-bs-placement="right"
         title="Click to reset data"
-        onClick={(e) => setFile(null)}
+        onClick={(e) => {
+          setFile(null);
+        }}
       />
       <button
         className="btn btn-primary"
@@ -127,7 +159,7 @@ function LinePlot({
   colors,
 }) {
   d3.select("#power-graph").selectAll("g").remove();
-  const svgRef = useRef(d3.create("svg"));
+  const svgRef = useRef(null);
   useEffect(() => {
     d3.select(svgRef.current)
       .attr("id", "power-graph")
@@ -165,6 +197,7 @@ function LinePlot({
     [height - marginBottom, marginTop]
   );
 
+  // Second y-scale for second y-axis
   const socY = d3.scaleLinear([0, 100], [height - marginBottom, marginTop]);
 
   // Add the x-axis to the container.
@@ -174,12 +207,9 @@ function LinePlot({
         .select(svgRef.current)
         .append("g")
         .attr("transform", `translate(0, ${height - marginBottom})`)
+        .style("font-size", "18px")
         .call(
-          d3
-            .axisBottom(x)
-            .ticks(width / 80)
-            .tickFormat(tickFormat)
-            .tickSizeOuter(0)
+          d3.axisBottom(x).ticks(10).tickFormat(tickFormat).tickSizeOuter(0)
         )
         .call((g) =>
           g
@@ -198,7 +228,8 @@ function LinePlot({
         .select(svgRef.current)
         .append("g")
         .attr("transform", `translate(${marginLeft}, 0)`)
-        .call(d3.axisLeft(y).ticks(height / 40, ".1f"))
+        .style("font-size", "16px")
+        .call(d3.axisLeft(y).ticks(11, ",.1f"))
         .call((g) => g.select(".domain").remove())
         .call((g) =>
           g
@@ -211,22 +242,26 @@ function LinePlot({
         .attr("y", -height + marginBottom + 10)
         .attr("fill", "currentColor")
         .attr("text-anchor", "start")
+        .style("font-size", "18px")
         .text("Power (kW)"),
     [data, svgRef, y]
   );
 
+  // Add the second y-axis to the container
   useEffect(() => {
     void d3
       .select(svgRef.current)
       .append("g")
       .attr("transform", `translate(${width - marginRight}, 0)`)
-      .call(d3.axisRight(socY).ticks(height / 40, ".1f"))
+      .style("font-size", "18px")
+      .call(d3.axisRight(socY).ticks(10, ".0f"))
       .call((g) => g.select(".domain").remove())
       .select("text")
       .attr("x", -marginLeft)
       .attr("y", -height + marginBottom + 10)
       .attr("fill", "currentColor")
       .attr("text-anchor", "start")
+      .style("font-size", "18px")
       .text("SOC (%)");
   }, [data, svgRef, y]);
 
@@ -297,13 +332,23 @@ function LinePlot({
   }
 
   const drawLine = (property) => {
+    const simpleData = simplify(
+      [
+        ...data.map((datum) => {
+          return { x: x(Date.parse(datum.date)), y: y(datum[property]) };
+        }),
+      ],
+      1,
+      false
+    );
+
     const lines = d3.select(svgRef.current).append("g");
     // Line generator (Draws line only showing points that are not missing, hiding the missing points)
     const line = d3
       .line()
-      .defined((d) => !isNaN(d["pActual"]))
-      .x((d) => x(Date.parse(d.date)))
-      .y((d) => y(d[property]));
+      .defined((d) => !isNaN(d.y))
+      .x((d) => d.x)
+      .y((d) => d.y);
 
     lines
       .append("path")
@@ -312,7 +357,7 @@ function LinePlot({
       .attr("stroke", "#ccc")
       .attr("stroke-width", 1.5)
       .attr("stroke-dasharray", [10, 8])
-      .attr("d", line(data.filter((d) => !isNaN(d[property]))));
+      .attr("d", line(simpleData.filter((d) => !isNaN(d.y))));
 
     lines
       .append("path")
@@ -320,16 +365,26 @@ function LinePlot({
       .attr("fill", "none")
       .attr("stroke", colors[property ? property : 0])
       .attr("stroke-width", 1.5)
-      .attr("d", line(data));
+      .attr("d", line(simpleData));
   };
 
   useEffect(() => {
+    const simpleData = simplify(
+      [
+        ...data.map((datum) => {
+          return { x: x(Date.parse(datum.date)), y: socY(datum["SOC"]) };
+        }),
+      ],
+      1,
+      false
+    );
+
     // Percentage axis
     const line = d3
       .line()
-      .defined((d) => !isNaN(d["pActual"]))
-      .x((d) => x(Date.parse(d.date)))
-      .y((d) => socY(d["SOC"]));
+      .defined((d) => !isNaN(d.y))
+      .x((d) => d.x)
+      .y((d) => d.y);
 
     d3.select("#SOCLine").remove();
     d3.select(svgRef.current)
@@ -338,7 +393,7 @@ function LinePlot({
       .attr("fill", "none")
       .attr("stroke", colors["SOC"])
       .attr("stroke-width", 1.5)
-      .attr("d", line(data))
+      .attr("d", line(simpleData))
       .attr("id", "SOCLine");
 
     // Power axis
@@ -346,19 +401,48 @@ function LinePlot({
       if (key !== "date" && key !== "SOC") drawLine(key);
   }, [data, svgRef]);
 
-  d3.select(svgRef.current).exit().remove();
+  //d3.select(svgRef.current).exit().remove();
 
-  return <svg ref={svgRef} />;
+  return (
+    <>
+      {" "}
+      <svg ref={svgRef} />
+    </>
+  );
+}
+
+function EnergyMeter({ className, style }) {
+  const { charge, discharge } = useSelector((state) => state.data.energy);
+  const { minSOC, peakData, peakMeter, peakBESS } = useSelector(
+    (state) => state.data.others
+  );
+
+  console.log(charge, discharge);
+
+  return (
+    <div className="d-flex flex-column align-items-left border-top my-2">
+      <h1>Energy Exchanged</h1>
+      <p className="lead">Charged: {d3.format(",.2f")(charge)} kWh</p>
+      <p className="lead">Discharged: {d3.format(",.2f")(discharge)} kWh</p>
+      <h1>Other Statistics</h1>
+      <p className="lead">Minimum SOC: {d3.format(",.1f")(minSOC)}%</p>
+      <p className="lead">
+        Peak BESS Discharge: {d3.format(",.2f")(peakBESS)} kW{" "}
+      </p>
+      <p className="lead">Peak w/out BESS: {d3.format(",.2f")(peakData)} kW</p>
+      <p className="lead">Peak w/ BESS: {d3.format(",.2f")(peakMeter)} kW</p>
+    </div>
+  );
 }
 
 export default function BuildingPowerTools({ className, style }) {
   const data = useSelector((state) => state.data.buildingPower);
   const colors = {
-    pActual: "lightgreen",
-    pBESS: "darkblue",
-    pBuilding: "purple",
-    pMeter: "red",
-    pGoal: "orange",
+    MeterData: "lightgreen",
+    BatteryPower: "darkblue",
+    //pBuilding: "purple",
+    ProjectedMeter: "red",
+    PowerGoal: "orange",
     SOC: "#08f",
   };
 
@@ -395,8 +479,13 @@ export default function BuildingPowerTools({ className, style }) {
             style={{ "--section-num": 3 }}
           >
             <h2 className="display-6 my-2">Building Power</h2>
-            <LinePlot data={data} colors={colors} />
+            <div className="d-flex flex-row w-100 h-50 align-items-center border-right my-2">
+              <p>Power (kW)</p>
+              <LinePlot data={data} colors={colors} />
+              <p>SOC (%)</p>
+            </div>
             <Legend data={data} colors={colors} />
+            <EnergyMeter />
           </div>
           <div
             className="d-flex flex-column align-items-center border-top my-2"
@@ -404,7 +493,14 @@ export default function BuildingPowerTools({ className, style }) {
             style={{ "--section-num": 4 }}
           >
             <p className="lead my-2">Step 3: Download your projected data.</p>
-            <DownloadButton chartData="buildingPower" fileName="DPS_Data.csv" />
+            <div className="d-flex flex-row align-items-center">
+              <DownloadButton
+                chartData="buildingPower"
+                fileName="DPS_Data.csv"
+              />
+              <p className="lead px-4">or</p>
+              <PdfGen />
+            </div>
           </div>
         </>
       ) : (

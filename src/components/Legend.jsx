@@ -3,7 +3,7 @@ import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
 
 export default function Legend({ data, colors }) {
   return (
-    <div className="legend">
+    <div id="legend" className="legend">
       {(() => {
         const keyList = [];
         for (const key of Object.keys(data[0])) {

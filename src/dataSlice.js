@@ -31,21 +31,21 @@ export const dataSlice = createSlice({
     buildingPower: [
       {
         date: "01-01-1971",
-        pActual: 1,
-        pBuilding: 2,
-        pBESS: 3,
-        pMeter: 4,
-        pGoal: 5,
-        SOC: 6,
+        MeterData: 1,
+        //pBuilding: 2,
+        BatteryPower: 3,
+        ProjectedMeter: 4,
+        PowerGoal: 5,
+        SOC: 25,
       },
       {
         date: "01-02-1971",
-        pActual: 1,
-        pBuilding: 2,
-        pBESS: 3,
-        pMeter: 4,
-        pGoal: 5,
-        SOC: 6,
+        MeterData: 1,
+        //pBuilding: 2,
+        BatteryPower: 3,
+        ProjectedMeter: 4,
+        PowerGoal: 5,
+        SOC: 25,
       },
     ],
     batteryProfile: [
@@ -54,6 +54,16 @@ export const dataSlice = createSlice({
     ],
     eventCount: 0,
     events: [],
+    energy: {
+      discharge: 0,
+      charge: 0,
+    },
+    others: {
+      minSOC: 100,
+      peakData: 0,
+      peakMeter: 0,
+      peakBESS: 0,
+    },
   },
   reducers: {
     setACLoadPower: (state, data) => {
@@ -95,30 +105,56 @@ export const dataSlice = createSlice({
       state.buildingPower = [
         {
           date: "01-01-1971",
-          pActual: 1,
-          pBuilding: 2,
-          pBESS: 3,
-          pMeter: 4,
-          pGoal: 5,
-          SOC: 6,
+          MeterData: 1,
+          //pBuilding: 2,
+          BatteryPower: 3,
+          ProjectedMeter: 4,
+          PowerGoal: 5,
+          SOC: 25,
         },
         {
           date: "01-02-1971",
-          pActual: 1,
-          pBuilding: 2,
-          pBESS: 3,
-          pMeter: 4,
-          pGoal: 5,
-          SOC: 6,
+          MeterData: 1,
+          //pBuilding: 2,
+          BatteryPower: 3,
+          ProjectedMeter: 4,
+          PowerGoal: 5,
+          SOC: 25,
         },
       ];
+      state.energy = { charge: 0, discharge: 0 };
+      state.others = { minSOC: 100, peakData: 0, peakMeter: 0, peakBESS: 0 };
     },
-  },
-  resetBatteryProfile: (state, data) => {
-    state.batteryProfile = [
-      { date: "01-01-1971", voltage: 53, current: 80 },
-      { date: "01-02-1971", voltage: 53, current: 80 },
-    ];
+    resetBatteryProfile: (state, data) => {
+      state.batteryProfile = [
+        { date: "01-01-1971", voltage: 53, current: 80 },
+        { date: "01-02-1971", voltage: 53, current: 80 },
+      ];
+    },
+    addEnergy: (state, data) => {
+      const { type, energy } = data.payload;
+      state.energy[type] += energy;
+    },
+    getSOC: (state, data) => {
+      if (state.batteryState.batterySOC < state.others.minSOC) {
+        state.others.minSOC = state.batteryState.batterySOC;
+      }
+    },
+    getPeakPower: (state, data) => {
+      if (data.payload.power > state.others.peakData) {
+        state.others.peakData = data.payload.power;
+      }
+    },
+    getPeakMeter: (state, data) => {
+      if (data.payload.meter > state.others.peakMeter) {
+        state.others.peakMeter = data.payload.meter;
+      }
+    },
+    getPeakBESS: (state, data) => {
+      if (data.payload.BESS > state.others.peakBESS) {
+        state.others.peakBESS = data.payload.BESS;
+      }
+    },
   },
 });
 
@@ -134,6 +170,11 @@ export const {
   setBatteryState,
   resetBuildingData,
   resetBatteryProfile,
+  addEnergy,
+  getSOC,
+  getPeakPower,
+  getPeakMeter,
+  getPeakBESS,
 } = dataSlice.actions;
 
 export default dataSlice.reducer;
