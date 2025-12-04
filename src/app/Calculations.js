@@ -55,7 +55,8 @@ export const pActual = (power) => {
 //  Takes the current date of the data point and raw pActual as input
 //  and returns powerActual with battery contribution removed.
 export const pBuilding = (date, powerActual) => {
-  return powerActual - pBESSNoEffects(date, powerActual); // Add them together because pBESS is positive during a charge, and positive means pulling from grid.
+  const solar = store.getState().data.solarState;
+  return solar + powerActual - pBESSNoEffects(date, powerActual); // Add them together because pBESS is positive during a charge, and positive means pulling from grid.
 };
 
 // pDPS refers to the DPS power level at which the BESS should either charge or discharge for peak shaving.
@@ -66,7 +67,9 @@ export const pBuilding = (date, powerActual) => {
 //   pBESS should be negative when the battery is Charging and positive when the battery is Discharging.
 //   This is the BESS's actual power contribution as determined by the operational logic.
 export const pBESS = (currentDate, powerActual) => {
-  const goal = store.getState().data.DPS.pGoal;
+  const beforeState = store.getState();
+  const goal = beforeState.data.DPS.pGoal;
+  const solar = beforeState.data.solarState;
 
   // Reset battery when graph is reset (oldDate is after current date when graph is reset)
   if (oldDate === null) {
@@ -86,11 +89,12 @@ export const pBESS = (currentDate, powerActual) => {
   }
 
   // Charge/Discharge/Idle calculation is done in CalcBatteryState.
-  calcBatteryState(currentDate, powerActual - goal);
+  calcBatteryState(currentDate, solar + powerActual - goal);
   oldDate = currentDate;
 
   // After the state has changed, the voltage and current will be updated.
-  const { batteryVoltage, batteryCurrent } = store.getState().data.batteryState;
+  let afterState = store.getState();
+  const { batteryVoltage, batteryCurrent } = afterState.data.batteryState;
 
   // Returns the power level calculated by the returned voltage and current.
   return (batteryVoltage * batteryCurrent) / 1000;
@@ -104,7 +108,9 @@ const pBESSNoEffects = (date, power) => {
 // pMeter refers to the average power usage as would be measured by the utility meter, estimated by the WattNode against the measured demand time interval.
 //   The time interval for the meter average varies depending on the tariff in use and is separate from the DPS timing.
 export const pMeter = (date, powerActual) => {
-  const tMeter = store.getState().data.DPS.meterScanTime;
+  const state = store.getState();
+  const tMeter = state.data.DPS.meterScanTime;
+
   if (minutesBetween(date, tLast) >= 0) {
     tLast = new Date(0);
     pLast = 0;
@@ -379,4 +385,26 @@ const minutesLeft = () => {
       (stateOfHealth / 100)) /
     (maxDischargePower * 1000)
   );
+};
+
+export const pSolar = (solarPower, date) => {
+  const dataLength = solarPower.length;
+  const matchIndex = Math.floor(dataLength * findDateInRange(date));
+
+  const matchDate =
+    matchIndex > 0
+      ? matchIndex < dataLength
+        ? solarPower[matchIndex]
+        : solarPower[dataLength - 1]
+      : solarPower[0];
+
+  return matchDate.power;
+};
+
+const findDateInRange = (date) => {
+  const startTime = store.getState().data.solarStartTime;
+  const endTime = store.getState().data.solarEndTime - startTime;
+  const dateTime = Date.parse(date) - startTime;
+
+  return dateTime / endTime;
 };

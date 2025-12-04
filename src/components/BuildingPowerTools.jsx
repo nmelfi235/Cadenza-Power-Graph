@@ -9,6 +9,9 @@ import {
   getPeakPower,
   getSOC,
   getPeakBESS,
+  setSolarData,
+  setSolarState,
+  resetSolarData,
 } from "../dataSlice.js";
 import store from "../app/store.js";
 import { parse } from "papaparse";
@@ -21,6 +24,7 @@ import {
   pMeter,
   pGoal,
   resetData,
+  pSolar,
 } from "../app/Calculations";
 import { tickFormat } from "../app/Helpers";
 import DownloadButton from "./DownloadButton";
@@ -59,18 +63,37 @@ function CSVField() {
       const reader = new FileReader();
       reader.onload = (ev) => {
         const content = ev.target.result;
-        const parsedContent = parse(content).data;
+        const parsedContent = parse(content).data.map((d) => {
+          return {
+            x: new Date(d[0]),
+            y: !isNaN(parseFloat(d[1])) ? parseFloat(d[1]) : 0,
+          };
+        });
         parsedContent.pop();
         parsedContent.shift();
 
         const batteryStats = []; // contents are created in parsedPower mapping
+        const solarPower = store.getState().data.solarPower;
+        /*const simpleContent = simplify(
+          [
+            ...parsedContent.map((d) => {
+              return {
+                x: Date.parse(d[0]),
+                y: !isNaN(parseFloat(d[1])) ? parseFloat(d[1]) : 0,
+              };
+            }),
+          ],
+          0.1,
+          false
+        );*/
+        //console.log(parsedContent);
         const parsedPower = parsedContent.map((datum) => {
-          const date = datum[0]; //new Date(datum[0]);
+          const date = datum.x.toString(); //datum[0]; //new Date(datum[0]);
           //  +new Date(datum[0]) // + +new Date(1000 * 60 * 60 * 5) // timezone -5:00 GMT
           //).toString();
-          const power = !isNaN(parseFloat(datum[1]))
-            ? parseFloat(datum[1])
-            : NaN;
+          const power = datum.y; //!isNaN(parseFloat(datum[1]))
+          //? parseFloat(datum[1])
+          //: NaN;
           batteryStats.push({
             date: date,
             voltage: store.getState().data.batteryState.batteryVoltage,
@@ -80,23 +103,43 @@ function CSVField() {
             date: date,
             MeterData: (() => {
               dispatch(getPeakPower({ power: power }));
-              return pActual(power);
+              let actual = parseFloat(pActual(power).toFixed(2));
+              //console.log("Actual: " + actual);
+              return actual;
             })(),
-            //pBuilding: pBuilding(date, power),
+            SolarPower: (() => {
+              let solar = parseFloat(pSolar(solarPower, date).toFixed(2));
+              dispatch(setSolarState(solar));
+              //console.log("Solar: " + solar);
+              return solar;
+            })(),
+            TotalPower: (() => {
+              let building = parseFloat(pBuilding(date, power).toFixed(2));
+              return building;
+            })(),
             BatteryPower: (() => {
-              let BESS = pBESS(date, power);
+              let BESS = parseFloat(pBESS(date, power).toFixed(2));
               dispatch(getPeakBESS({ BESS: BESS }));
+              //console.log("BESS: " + BESS);
               return BESS;
             })(),
             ProjectedMeter: (() => {
-              let meter = pMeter(date, power);
+              let meter = parseFloat(pMeter(date, power).toFixed(2));
               dispatch(getPeakMeter({ meter: meter }));
+              //console.log("Meter: " + meter);
               return meter;
             })(),
-            PowerGoal: parseFloat(pGoal(PGOAL)),
+            PowerGoal: (() => {
+              let goal = parseFloat(pGoal(PGOAL));
+              return goal;
+            })(),
             SOC: (() => {
               dispatch(getSOC());
-              return store.getState().data.batteryState.batterySOC;
+              let soc_now = parseFloat(
+                store.getState().data.batteryState.batterySOC.toFixed(2)
+              );
+              //console.log("SOC: " + soc_now);
+              return soc_now;
             })(),
           };
         });
@@ -111,38 +154,81 @@ function CSVField() {
 
   const handleChange = (event) => {
     event.preventDefault();
+
     setFile(event.target.files[0]);
   };
 
+  const handleSolarChange = (event) => {
+    event.preventDefault();
+    dispatch(resetSolarData);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const content = ev.target.result;
+      const parsedContent = parse(content).data;
+      parsedContent.pop();
+      parsedContent.shift();
+
+      const parsedSolar = parsedContent.map((datum) => {
+        const date = datum[0];
+        const power = !isNaN(parseFloat(datum[1])) ? parseFloat(datum[1]) : 0;
+        return { date: date, power: -power };
+      });
+
+      dispatch(setSolarData(parsedSolar));
+    };
+    reader.readAsText(event.target.files[0]);
+  };
+
   return (
-    <form className="d-flex flex-row w-75 justify-content-center">
-      <input
-        type="file"
-        onChange={handleChange}
-        className="form-control w-50"
-      />
-      <input
-        type="reset"
-        className="btn btn-danger mx-2"
-        data-bs-toggle="tooltip"
-        data-bs-placement="right"
-        title="Click to reset data"
-        onClick={(e) => {
-          setFile(null);
-        }}
-      />
-      <button
-        className="btn btn-primary"
-        data-bs-toggle="tooltip"
-        data-bs-placement="right"
-        title="Click to regenerate graph"
-        onClick={(e) => {
-          e.preventDefault();
-          updateData();
-        }}
-      >
-        Generate
-      </button>
+    <form className="d-flex flex-column w-75 justify-content-center align-items-center">
+      <div className="d-flex flex-row justify-content-center mx-2">
+        <div className="d-flex flex-column mx-2 text-bg-info p-2 rounded">
+          <p className="lead m-0">Interval Data:</p>
+          <div className="form-check form-switch my-0">
+            <input type="checkbox" className="form-check-input" role="switch" />
+            <label className="form-check-label">w/ Solar</label>
+          </div>
+          <input
+            type="file"
+            name="building"
+            onChange={handleChange}
+            className="form-control mb-1"
+          />
+        </div>
+        <div className="d-flex flex-column text-bg-warning p-2 rounded">
+          <p className="lead">Solar Data:</p>
+          <input
+            type="file"
+            name="solar"
+            onChange={handleSolarChange}
+            className="form-control"
+          />
+        </div>
+      </div>
+      <div className="d-flex flex-row justify-content-center my-2 w-100">
+        <input
+          type="reset"
+          className="btn btn-danger mx-2 w-20"
+          data-bs-toggle="tooltip"
+          data-bs-placement="right"
+          title="Click to reset data"
+          onClick={(e) => {
+            setFile(null);
+          }}
+        />
+        <button
+          className="btn btn-primary w-20"
+          data-bs-toggle="tooltip"
+          data-bs-placement="right"
+          title="Click to regenerate graph"
+          onClick={(e) => {
+            e.preventDefault();
+            updateData();
+          }}
+        >
+          Generate
+        </button>
+      </div>
     </form>
   );
 }
@@ -440,10 +526,11 @@ export default function BuildingPowerTools({ className, style }) {
   const colors = {
     MeterData: "lightgreen",
     BatteryPower: "darkblue",
-    //pBuilding: "purple",
+    TotalPower: "purple",
     ProjectedMeter: "red",
     PowerGoal: "orange",
     SOC: "#08f",
+    SolarPower: "#093",
   };
 
   return (

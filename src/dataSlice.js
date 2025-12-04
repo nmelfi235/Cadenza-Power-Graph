@@ -1,4 +1,5 @@
 import { createSlice } from "@reduxjs/toolkit";
+import simplify from "simplify-js";
 
 export const dataSlice = createSlice({
   name: "data",
@@ -37,6 +38,7 @@ export const dataSlice = createSlice({
         ProjectedMeter: 4,
         PowerGoal: 5,
         SOC: 25,
+        SolarPower: -1,
       },
       {
         date: "01-02-1971",
@@ -46,6 +48,7 @@ export const dataSlice = createSlice({
         ProjectedMeter: 4,
         PowerGoal: 5,
         SOC: 25,
+        SolarPower: -1,
       },
     ],
     batteryProfile: [
@@ -64,6 +67,19 @@ export const dataSlice = createSlice({
       peakMeter: 0,
       peakBESS: 0,
     },
+    solarPower: [
+      {
+        date: "01-01-1971",
+        power: -1,
+      },
+      {
+        date: "01-02-1971",
+        power: -1,
+      },
+    ],
+    solarState: -1,
+    solarStartTime: 0,
+    solarEndTime: 1440,
   },
   reducers: {
     setACLoadPower: (state, data) => {
@@ -111,6 +127,7 @@ export const dataSlice = createSlice({
           ProjectedMeter: 4,
           PowerGoal: 5,
           SOC: 25,
+          SolarPower: -1,
         },
         {
           date: "01-02-1971",
@@ -120,6 +137,7 @@ export const dataSlice = createSlice({
           ProjectedMeter: 4,
           PowerGoal: 5,
           SOC: 25,
+          SolarPower: -1,
         },
       ];
       state.energy = { charge: 0, discharge: 0 };
@@ -130,6 +148,15 @@ export const dataSlice = createSlice({
         { date: "01-01-1971", voltage: 53, current: 80 },
         { date: "01-02-1971", voltage: 53, current: 80 },
       ];
+    },
+    resetSolarData: (state, data) => {
+      state.solarPower = [
+        { date: "01-01-1971", power: -1 },
+        { date: "01-02-1971", power: -1 },
+      ];
+      state.solarState = -1;
+      state.solarStartTime = 0;
+      state.solarEndTime = 0;
     },
     addEnergy: (state, data) => {
       const { type, energy } = data.payload;
@@ -155,6 +182,16 @@ export const dataSlice = createSlice({
         state.others.peakBESS = data.payload.BESS;
       }
     },
+    setSolarData: (state, data) => {
+      state.solarPower = data.payload;
+      state.solarStartTime = Date.parse(data.payload[0].date);
+      state.solarEndTime = Date.parse(
+        data.payload[data.payload.length - 1].date
+      );
+    },
+    setSolarState: (state, data) => {
+      state.solarState = data.payload;
+    },
   },
 });
 
@@ -170,11 +207,14 @@ export const {
   setBatteryState,
   resetBuildingData,
   resetBatteryProfile,
+  resetSolarData,
   addEnergy,
   getSOC,
   getPeakPower,
   getPeakMeter,
   getPeakBESS,
+  setSolarData,
+  setSolarState,
 } = dataSlice.actions;
 
 export default dataSlice.reducer;
