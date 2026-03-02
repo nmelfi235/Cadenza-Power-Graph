@@ -41,7 +41,7 @@ function InfoTable() {
                         index={index}
                         onClick={(e) => deleteRow(e, event.eventID)}
                       ></i>
-                    </td>
+                    </td>,
                   );
                   for (const info in event) {
                     if (info === "eventID") continue;
@@ -51,12 +51,12 @@ function InfoTable() {
                         style={{ width: colWidth, height: rowHeight }}
                       >
                         {event[info]}
-                      </td>
+                      </td>,
                     );
                   }
                   return cols;
                 })()}
-              </tr>
+              </tr>,
             );
             index++;
           }
@@ -88,8 +88,8 @@ function Modal({ openModal, closeModal }) {
         eventType: e.target["eventType"].value,
         startTime: e.target["startTime"].value,
         endTime: e.target["endTime"].value,
-        powerLevel: e.target["powerLevel"].value,
-      })
+        powerLevel: e.target["powerLevel"]?.value || 0,
+      }),
     );
     closeModal();
   };
@@ -134,18 +134,34 @@ function Modal({ openModal, closeModal }) {
             >
               Discharge
             </button>
+            <button
+              type="button"
+              className={
+                eventType === "Timeblock"
+                  ? "btn btn-primary active"
+                  : "btn btn-primary"
+              }
+              value="Timeblock"
+              onClick={() => setEventType("Timeblock")}
+            >
+              Timeblock
+            </button>
           </div>
-          <label htmlFor="power-input">Power Level:</label>
-          <div className="input-group">
-            <input
-              id="power-input"
-              className="form-control"
-              type="number"
-              name="powerLevel"
-              step="any"
-            ></input>
-            <div className="input-group-text">kW</div>
-          </div>
+          {eventType !== "Timeblock" && (
+            <>
+              <label htmlFor="power-input">Power Level:</label>
+              <div className="input-group">
+                <input
+                  id="power-input"
+                  className="form-control"
+                  type="number"
+                  name="powerLevel"
+                  step="any"
+                ></input>
+                <div className="input-group-text">kW</div>
+              </div>
+            </>
+          )}
           <label htmlFor="start-time-input">Start Time:</label>
           <input
             id="start-time-input"

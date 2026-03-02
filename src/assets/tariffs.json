@@ -1,0 +1,16 @@
+{
+  "": {
+    "peakPeriodStart": 0,
+    "peakPeriodEnd": 0,
+    "weekendsArePeak": false,
+    "holidays": []
+  },
+  "Ameren": {
+    "peakPeriodStart": 10,
+    "peakPeriodEnd": 22,
+    "weekendsArePeak": true,
+    "holidays": [
+      "New Year's Day", "Memorial Day", "Independence Day", "Labor Day", "Thanksgiving Day", "Christmas Day"
+    ]
+  }
+}

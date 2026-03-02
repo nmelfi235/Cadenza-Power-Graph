@@ -36,14 +36,14 @@ export default function PdfGen() {
     const t1columns = [
       ["Minimum SOC", "Peak Discharge", "Peak w/o BESS", "Peak w/ BESS"],
     ];
-    const { minSOC, peakBESS, peakData, peakMeter } =
+    const { minSOC, peakBESS, peakDataOn, peakMeterOn } =
       store.getState().data.others;
     const t1rows = [
       [
         d3.format(",.1f")(minSOC) + "%",
         d3.format(",.2f")(peakBESS) + " kW",
-        d3.format(",.2f")(peakData) + " kW",
-        d3.format(",.2f")(peakMeter) + " kW",
+        d3.format(",.2f")(peakDataOn) + " kW",
+        d3.format(",.2f")(peakMeterOn) + " kW",
       ],
     ];
 
@@ -56,6 +56,33 @@ export default function PdfGen() {
       ],
     ];
 
+    const t3columns = [["", "On Peak Usage", "Off Peak Usage"]];
+    const { onPeak, offPeak, onPeakBESS, offPeakBESS } =
+      store.getState().data.peakTotals;
+    const t3rows = [
+      [
+        "Interval Data",
+        d3.format(",.2f")(onPeak) + " kWh",
+        d3.format(",.2f")(offPeak) + " kWh",
+      ],
+      [
+        "w/ BESS",
+        d3.format(",.2f")(onPeakBESS) + " kWh",
+        d3.format(",.2f")(offPeakBESS) + " kWh",
+      ],
+    ];
+
+    const t4columns = [["Event Type", "Start Time", "End Time", "Power Level"]];
+    const events = store.getState().data.events;
+    const t4rows = [];
+    for (const event of events) {
+      let row = [];
+      for (const info in event) {
+        row.push(event[info]);
+      }
+      t4rows.push(row);
+    }
+
     doc
       .html(logoEl, { x: 30, y: 10, html2canvas: { scale: 0.9 } })
       .then(() => {
@@ -67,20 +94,21 @@ export default function PdfGen() {
         doc.setFontSize(24);
         doc.text(graphTitle, 225, 190, { maxWidth: 500 });
       })
-      .then(() => doc.svg(graph, { x: 70, y: 190, width: 600, height: 300 }))
-      .then(() => {
-        doc.setFontSize(14);
-        doc.text(y1Label, 60, 370, { angle: 90 });
-      })
-      .then(() => {
-        doc.setFontSize(14);
-        doc.text(y2Label, 530, 310, { angle: -90 });
-      })
       .then(() =>
-        doc.html(legend, { x: 85, y: 450, html2canvas: { scale: 0.75 } })
+        doc.svg(graph, {
+          x: 40,
+          y: 190,
+          width: graph.clientWidth / 2,
+          height: graph.clientHeight / 2,
+        }),
+      )
+      .then(() =>
+        doc.html(legend, { x: 80, y: 450, html2canvas: { scale: 0.55 } }),
       )
       .then(() => doc.autoTable({ head: t1columns, body: t1rows, startY: 500 }))
       .then(() => doc.autoTable({ head: t2columns, body: t2rows, startY: 570 }))
+      .then(() => doc.autoTable({ head: t3columns, body: t3rows, startY: 630 }))
+      .then(() => doc.autoTable({ head: t4columns, body: t4rows, startY: 700 }))
       .then(() => doc.output("dataurlnewwindow")); //doc.save("report.pdf"));
 
     //doc.output("datauristring");
@@ -100,3 +128,55 @@ export default function PdfGen() {
     </div>
   );
 }
+
+export function PDFKitGen() {
+  /**
+   * Logo
+   * Title
+   * Input Table
+   * Graph
+   * Legend
+   * Site Metrics Table
+   * Solar Metrics Table
+   * BESS Metrics Table
+   */
+  const [title, set_title] = useState("Report Name");
+
+  const onClick = () => {
+    let pdfElements = {
+      Logo: "src/assets/cadenza_logo.png",
+      Title: title,
+      Inputs: getInputs(),
+      Graph: getGraph(),
+    };
+  };
+
+  return (
+    <div className="d-flex flex-column">
+      <input
+        className="form-control"
+        onChange={(i) => change_title(i.target.value)}
+        type="text"
+        placeholder="Report Name"
+      />
+      <button className="btn btn-primary m-1" type="button" onClick={onClick}>
+        Download PDF
+      </button>
+    </div>
+  );
+}
+
+const getInputs = () => {
+  const goal = store.getState().data.DPS.pGoal;
+  const { maxChargePower, maxDischargePower, maxAmpHours } =
+    store.getState().data.batterySettings;
+  const capacity = maxAmpHours / 20;
+  return {
+    goal,
+    maxChargePower,
+    maxDischargePower,
+    capacity,
+  };
+};
+
+const getGraph = () => {};

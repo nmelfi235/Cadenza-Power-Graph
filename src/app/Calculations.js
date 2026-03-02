@@ -1,5 +1,10 @@
 import store from "./store";
-import { setBatteryState, setDPSProperty, addEnergy } from "../dataSlice";
+import {
+  setBatteryState,
+  setDPSProperty,
+  addEnergy,
+  addPeakUsage,
+} from "../dataSlice";
 // This file holds the calculations for each DPS line.
 
 // The DPS System evaluates its desired operation and power level every time interval tDPS.
@@ -23,16 +28,16 @@ export const resetData = () => {
       batterySOC: batterySettings.initialSOC,
       batteryAmpHours:
         batterySettings.maxAmpHours * (batterySettings.initialSOC / 100),
-    })
+    }),
   );
 };
 
 // Helper function to calculate minutes between two dates
 const minutesBetween = (date0, date1) => {
+  if (date0 === null || date1 === null) return 0;
   const dates = [new Date(date0), new Date(date1)];
   const difference = (dates[1].getTime() - dates[0].getTime()) / (1000 * 60);
-  //console.log(difference);
-  return difference;
+  return isNaN(difference) ? -1 : difference;
 };
 
 // pGoal refers to the building power level that the DPS system is attempting to maintain and is described in more detail in Section 3.2
@@ -47,7 +52,25 @@ export const pGoal = (goal = null) => {
 // pActual refers to the power level as seen at the WattNode, i.e. positioned directly behind the building's utility meter.
 //   pActual will be negative when the building is providing power to the grid and positive otherwise.
 //  Takes raw pActual as input and returns the value.
-export const pActual = (power) => {
+export const pActual = (date, power) => {
+  if (oldDate === null) oldDate = date;
+  store.dispatch(
+    addPeakUsage({
+      time: date,
+      BESS: false,
+      value: (power * 15) / 60, //minutesBetween(oldDate, date)) / 60,
+    }),
+  );
+
+  //console.log("Interval Data Power Level:", power);
+
+  /**
+   * TODO: Follow Per's algorithm for getting the on-peak & off-peak energy usage data
+   * 1. Get total energy usage for time period
+   * 2. Get total on-peak energy usage for time period
+   * 3. Subtract on-peak energy usage from total energy usage for time period to get off-peak energy usage
+   */
+
   return power;
 };
 
@@ -56,7 +79,24 @@ export const pActual = (power) => {
 //  and returns powerActual with battery contribution removed.
 export const pBuilding = (date, powerActual) => {
   const solar = store.getState().data.solarState;
-  return solar + powerActual - pBESSNoEffects(date, powerActual); // Add them together because pBESS is positive during a charge, and positive means pulling from grid.
+  const power = solar + powerActual + pBESSNoEffects(date, powerActual);
+
+  store.dispatch(
+    addPeakUsage({
+      time: date,
+      BESS: true,
+      value: (power * 15) / 60, //minutesBetween(oldDate, date)) / 60,
+    }),
+  );
+
+  return power; // Add them together because pBESS is positive during a charge, and positive means pulling from grid.
+};
+
+const pBuildingNoEffects = (date, powerActual) => {
+  const solar = store.getState().data.solarState;
+  const power = solar + powerActual + pBESSNoEffects(date, powerActual);
+
+  return power;
 };
 
 // pDPS refers to the DPS power level at which the BESS should either charge or discharge for peak shaving.
@@ -82,7 +122,7 @@ export const pBESS = (currentDate, powerActual) => {
         " " +
         new Date(oldDate).getTimezoneOffset() +
         " " +
-        new Date(currentDate).getTimezoneOffset()
+        new Date(currentDate).getTimezoneOffset(),
     );
     oldDate = currentDate;
     dpsStartDate = currentDate;
@@ -97,12 +137,12 @@ export const pBESS = (currentDate, powerActual) => {
   const { batteryVoltage, batteryCurrent } = afterState.data.batteryState;
 
   // Returns the power level calculated by the returned voltage and current.
-  return (batteryVoltage * batteryCurrent) / 1000;
+  return (batteryVoltage * batteryCurrent) / -1000;
 };
 
 const pBESSNoEffects = (date, power) => {
   const { batteryVoltage, batteryCurrent } = store.getState().data.batteryState;
-  return (batteryVoltage * batteryCurrent) / 1000;
+  return (batteryVoltage * batteryCurrent) / -1000;
 };
 
 // pMeter refers to the average power usage as would be measured by the utility meter, estimated by the WattNode against the measured demand time interval.
@@ -116,7 +156,7 @@ export const pMeter = (date, powerActual) => {
     pLast = 0;
   } else if (minutesBetween(tLast, date) >= tMeter) {
     tLast = date;
-    pLast = pBuilding(date, powerActual);
+    pLast = pBuildingNoEffects(date, powerActual);
   }
 
   return pLast;
@@ -129,29 +169,36 @@ const getLatestEvent = (date, eventList) => {
     const endTime = event.endTime.split(":").map((el) => parseInt(el));
 
     const dayTimeEvent =
-      startTime[0] < endTime[0] ||
-      (startTime[0] === endTime[0] && startTime[1] < endTime[1]);
-    const nightTimeEvent =
-      startTime[0] > endTime[0] ||
-      (startTime[0] === endTime[0] && startTime[1] > endTime[1]);
+      startTime[0] <= endTime[0] ||
+      (startTime[0] === endTime[0] && startTime[1] <= endTime[1]);
+    const nightTimeEvent = !dayTimeEvent;
+    /*startTime[0] >= endTime[0] ||
+      (startTime[0] === endTime[0] && startTime[1] >= endTime[1]);*/
     const afterStartTime =
       startTime[0] < dateHHMM[0] ||
-      (startTime[0] === dateHHMM[0] && startTime[1] < dateHHMM[1]);
+      (startTime[0] === dateHHMM[0] && startTime[1] <= dateHHMM[1]);
     const beforeEndTime =
       dateHHMM[0] < endTime[0] ||
-      (dateHHMM[0] === endTime[0] && dateHHMM[1] < endTime[1]);
+      (dateHHMM[0] === endTime[0] && dateHHMM[1] <= endTime[1]);
     const sameStartEndTime =
       startTime[0] === endTime[0] && startTime[1] === endTime[1];
 
+    const compareEvents = (event1, event2) => {
+      if (event2 === null) return event1;
+      return event1.eventType === "Discharge" && event2.eventType === "Charge"
+        ? event1
+        : event2;
+    };
+
     if (dayTimeEvent && afterStartTime && beforeEndTime && !sameStartEndTime) {
       // Daytime event, after start time (morning), before end time (evening)
-      return event;
+      return compareEvents(event, currentEvent);
     } else if (
       (nightTimeEvent && afterStartTime) ||
       (nightTimeEvent && beforeEndTime && !sameStartEndTime)
     ) {
       // Not a daytime event, after end time (overnight), before start time (morning)
-      return event;
+      return compareEvents(event, currentEvent);
     }
     return currentEvent;
   }, null);
@@ -177,7 +224,7 @@ export const calcBatteryState = (date, powerFromGoal) => {
     startOfDischarge,
     0,
     0,
-    0
+    0,
   );
   const endOfToday = new Date(
     new Date(date).getFullYear(),
@@ -186,12 +233,16 @@ export const calcBatteryState = (date, powerFromGoal) => {
     endOfDischarge,
     0,
     0,
-    0
+    0,
   );
+
+  // newCurrent only needs to be calculated after DPS scan time has passed.
+  if (dpsStartDate === null || dpsStartDate > date) dpsStartDate = date;
 
   // Full discharge at end of day overrides other events.
   // if minutesLeft >= minutesBetween now and "end of day", then discharge at full power until "end of day".
   if (
+    !(startOfDischarge === endOfDischarge) &&
     minutesBetween(startOfToday, date) >= 0 &&
     minutesLeft() >= minutesBetween(date, endOfToday) &&
     minutesBetween(date, endOfToday) > 0 &&
@@ -201,38 +252,38 @@ export const calcBatteryState = (date, powerFromGoal) => {
   }
   // First, check if battery should charge-- if DPS flag is on, skip this step. If power > goal, skip this step. If charge is already full, skip this step.
   else if (
-    (latestEvent?.eventType !== "Discharge" &&
-      latestEvent?.eventType === "Charge") ||
-    (latestEvent?.eventType !== "Discharge" &&
-      powerFromGoal < 0 &&
-      batterySOC < 100)
+    latestEvent?.eventType !== "Timeblock" &&
+    batterySOC < 100 &&
+    (latestEvent?.eventType === "Charge" ||
+      (latestEvent?.eventType !== "Discharge" && powerFromGoal < 0))
   )
     chargeBattery(
       date,
       !(latestEvent && latestEvent.eventType === "Charge")
         ? -powerFromGoal - store.getState().data.ACLoadPower
-        : parseFloat(latestEvent.powerLevel)
+        : parseFloat(latestEvent.powerLevel),
     );
   // send negative power because negative power is a charge here. Converts to positive.
   // Next, check if battery should discharge-- if battery is empty, skip this step. If power < goal, skip this step.
   else if (
-    latestEvent?.eventType === "Discharge" ||
-    (powerFromGoal > 0 && batterySOC > 0)
+    batterySOC > 0 &&
+    (latestEvent?.eventType === "Discharge" ||
+      (latestEvent?.eventType !== "Charge" && powerFromGoal > 0))
   )
     dischargeBattery(
       date,
       !(latestEvent && latestEvent.eventType === "Discharge")
         ? powerFromGoal
-        : parseFloat(latestEvent.powerLevel)
+        : parseFloat(latestEvent.powerLevel),
     );
-  else if (!latestEvent) {
+  else if (latestEvent === null) {
     store.dispatch(
       setBatteryState({
         batteryVoltage: batteryVoltage,
         batteryCurrent: 0,
         batterySOC: batterySOC,
         batteryAmpHours: batteryAmpHours,
-      })
+      }),
     );
   }
 
@@ -244,7 +295,7 @@ export const calcBatteryState = (date, powerFromGoal) => {
         batteryCurrent: 0,
         batterySOC: 0,
         batteryAmpHours: 0, //batteryAmpHours,
-      })
+      }),
     );
   }
 
@@ -267,8 +318,8 @@ const getNewChargeCurrent = (power, voltage) => {
   return power < chargeClearance || maxChargePower < chargeClearance // current should not be less than the charge clearance UNLESS the power level comes from an event (?)
     ? 0
     : power > maxChargePower // current should not be greater than max power current
-    ? (maxChargePower * 1000) / voltage
-    : (power * 1000) / voltage; // because power (W) = voltage (V) * current (A), scale power from kW to W
+      ? (maxChargePower * 1000) / voltage
+      : (power * 1000) / voltage; // because power (W) = voltage (V) * current (A), scale power from kW to W
 };
 
 const getNewDischargeCurrent = (power, voltage) => {
@@ -284,7 +335,7 @@ const chargeBattery = (date, power) => {
   //console.log("CHARGING AT " + power + " kW");
   const { batteryVoltage, batteryCurrent, batterySOC, batteryAmpHours } =
     store.getState().data.batteryState;
-  const efficiency = 0.95;
+  const efficiency = 0.9;
   const { maxAmpHours } = store.getState().data.batterySettings;
 
   const currentAdded = getNewChargeCurrent(power, batteryVoltage) * efficiency;
@@ -311,7 +362,7 @@ const chargeBattery = (date, power) => {
     addEnergy({
       type: "charge",
       energy: (batteryVoltage * ampHoursAdded) / 1000 / efficiency,
-    })
+    }),
   );
   store.dispatch(
     setBatteryState({
@@ -322,7 +373,7 @@ const chargeBattery = (date, power) => {
           : newCurrent,
       batterySOC: newSOC,
       batteryAmpHours: newAmpHours,
-    })
+    }),
   );
 };
 
@@ -330,7 +381,7 @@ const dischargeBattery = (date, power) => {
   //console.log("DISCHARGING AT " + power + " kW!");
   const { batteryVoltage, batteryCurrent, batterySOC, batteryAmpHours } =
     store.getState().data.batteryState;
-  const efficiency = 0.95;
+  const efficiency = 1.0;
   const { maxAmpHours, maxDischargePower } =
     store.getState().data.batterySettings;
 
@@ -356,7 +407,7 @@ const dischargeBattery = (date, power) => {
     addEnergy({
       type: "discharge",
       energy: ((batteryVoltage * ampHoursRemoved) / 1000) * efficiency,
-    })
+    }),
   );
   store.dispatch(
     setBatteryState({
@@ -364,7 +415,7 @@ const dischargeBattery = (date, power) => {
       batteryCurrent: newSOC <= 0 ? 0 : newCurrent,
       batterySOC: newSOC,
       batteryAmpHours: newAmpHours,
-    })
+    }),
   );
 };
 

@@ -12,6 +12,7 @@ import {
   setSolarData,
   setSolarState,
   resetSolarData,
+  setRecGoal,
 } from "../dataSlice.js";
 import store from "../app/store.js";
 import { parse } from "papaparse";
@@ -35,6 +36,8 @@ import ACLoadSettings from "./SettingsUI/ACLoadSettings.jsx";
 import ArbitrageSettings from "./SettingsUI/ArbitrageSettings.jsx";
 import PdfGen from "./PdfGen.jsx";
 import simplify from "simplify-js";
+import EventsTable from "./EventsTable.jsx";
+import PeakSettings from "./SettingsUI/PeakSettings.jsx";
 
 // This component is the form where the .csv file will be inputthen parsed and sent to the redux store for use in other components.
 function CSVField() {
@@ -45,10 +48,10 @@ function CSVField() {
   // Enable bootstrap tooltips
   useEffect(() => {
     const tooltipTriggerList = document.querySelectorAll(
-      '[data-bs-toggle="tooltip"]'
+      '[data-bs-toggle="tooltip"]',
     );
     const tooltipList = [...tooltipTriggerList].map(
-      (tooltipTriggerEl) => new bootstrap.Tooltip(tooltipTriggerEl)
+      (tooltipTriggerEl) => new bootstrap.Tooltip(tooltipTriggerEl),
     );
     return () => {
       tooltipList.map((t) => t.dispose());
@@ -57,11 +60,11 @@ function CSVField() {
 
   const updateData = () => {
     if (file) {
-      resetData();
-      dispatch(resetBuildingData());
-      dispatch(resetBatteryProfile());
       const reader = new FileReader();
       reader.onload = (ev) => {
+        resetData();
+        dispatch(resetBuildingData());
+        dispatch(resetBatteryProfile());
         const content = ev.target.result;
         const parsedContent = parse(content).data.map((d) => {
           return {
@@ -102,8 +105,8 @@ function CSVField() {
           return {
             date: date,
             MeterData: (() => {
-              dispatch(getPeakPower({ power: power }));
-              let actual = parseFloat(pActual(power).toFixed(2));
+              dispatch(getPeakPower({ time: date, power: power }));
+              let actual = parseFloat(pActual(date, power).toFixed(2));
               //console.log("Actual: " + actual);
               return actual;
             })(),
@@ -113,19 +116,19 @@ function CSVField() {
               //console.log("Solar: " + solar);
               return solar;
             })(),
-            TotalPower: (() => {
-              let building = parseFloat(pBuilding(date, power).toFixed(2));
-              return building;
-            })(),
             BatteryPower: (() => {
               let BESS = parseFloat(pBESS(date, power).toFixed(2));
               dispatch(getPeakBESS({ BESS: BESS }));
               //console.log("BESS: " + BESS);
               return BESS;
             })(),
+            TotalPower: (() => {
+              let building = parseFloat(pBuilding(date, power).toFixed(2));
+              return building;
+            })(),
             ProjectedMeter: (() => {
               let meter = parseFloat(pMeter(date, power).toFixed(2));
-              dispatch(getPeakMeter({ meter: meter }));
+              dispatch(getPeakMeter({ time: date, meter: meter }));
               //console.log("Meter: " + meter);
               return meter;
             })(),
@@ -136,7 +139,7 @@ function CSVField() {
             SOC: (() => {
               dispatch(getSOC());
               let soc_now = parseFloat(
-                store.getState().data.batteryState.batterySOC.toFixed(2)
+                store.getState().data.batteryState.batterySOC.toFixed(2),
               );
               //console.log("SOC: " + soc_now);
               return soc_now;
@@ -145,6 +148,7 @@ function CSVField() {
         });
         dispatch(setBuildingData(parsedPower));
         dispatch(setBatteryProfile(batteryStats));
+        dispatch(setRecGoal());
       };
       reader.readAsText(file);
     }
@@ -160,9 +164,9 @@ function CSVField() {
 
   const handleSolarChange = (event) => {
     event.preventDefault();
-    dispatch(resetSolarData);
     const reader = new FileReader();
     reader.onload = (ev) => {
+      dispatch(resetSolarData);
       const content = ev.target.result;
       const parsedContent = parse(content).data;
       parsedContent.pop();
@@ -236,12 +240,12 @@ function CSVField() {
 // This component generates a line plot. Modified D3 sample line plot for react.
 function LinePlot({
   data,
-  width = 1200,
-  height = 700,
-  marginTop = 50,
+  width = 1000,
+  height = 500,
+  marginTop = 35,
   marginRight = 50,
-  marginBottom = 50,
-  marginLeft = 50,
+  marginBottom = 35,
+  marginLeft = 80,
   colors,
 }) {
   d3.select("#power-graph").selectAll("g").remove();
@@ -254,7 +258,7 @@ function LinePlot({
         "viewBox",
         `0 0 ${width + marginLeft + marginRight} ${
           height + marginBottom + marginTop
-        }`
+        }`,
       )
       .on("pointerenter pointermove", pointerMoved)
       .on("pointerleave", pointerLeft);
@@ -269,7 +273,7 @@ function LinePlot({
   // X Scale declaration (Domain is start thru end date, range is physical screen space)
   const x = d3.scaleTime(
     d3.extent(data, (d) => Date.parse(d.date)),
-    [marginLeft, width - marginRight]
+    [marginLeft, width - marginRight],
   );
 
   // Y Scale declaration (Domain is min to max power, range is physical screen space)
@@ -280,7 +284,7 @@ function LinePlot({
   ]);
   const y = d3.scaleLinear(
     [d3.min(valsList), d3.max(valsList)],
-    [height - marginBottom, marginTop]
+    [height - marginBottom, marginTop],
   );
 
   // Second y-scale for second y-axis
@@ -293,18 +297,18 @@ function LinePlot({
         .select(svgRef.current)
         .append("g")
         .attr("transform", `translate(0, ${height - marginBottom})`)
-        .style("font-size", "18px")
+        .style("font-size", "14px")
         .call(
-          d3.axisBottom(x).ticks(10).tickFormat(tickFormat).tickSizeOuter(0)
+          d3.axisBottom(x).ticks(10).tickFormat(tickFormat).tickSizeOuter(0),
         )
         .call((g) =>
           g
             .selectAll(".tick line")
             .attr("y2", -height + marginTop + marginBottom)
             .attr("stroke-opacity", 0.1)
-            .attr("stroke-dasharray", [8, 10])
+            .attr("stroke-dasharray", [8, 10]),
         ),
-    [data, svgRef, x]
+    [data, svgRef, x],
   );
 
   // Add the y-axis to the container.
@@ -314,23 +318,28 @@ function LinePlot({
         .select(svgRef.current)
         .append("g")
         .attr("transform", `translate(${marginLeft}, 0)`)
-        .style("font-size", "16px")
-        .call(d3.axisLeft(y).ticks(11, ",.1f"))
+        .style("font-size", "14px")
+        .call(d3.axisLeft(y).ticks(height / 50, ",.1f"))
+        .call((g) => g.selectAll("text").text((d) => " " + d))
         .call((g) => g.select(".domain").remove())
         .call((g) =>
           g
             .selectAll(".tick line")
             .attr("x2", width - marginLeft - marginRight)
-            .attr("stroke-opacity", 0.1)
+            .attr("stroke-opacity", 0.1),
         )
-        .select("text")
-        .attr("x", -marginLeft)
-        .attr("y", -height + marginBottom + 10)
-        .attr("fill", "currentColor")
-        .attr("text-anchor", "start")
-        .style("font-size", "18px")
-        .text("Power (kW)"),
-    [data, svgRef, y]
+        .call((g) =>
+          g
+            .append("text")
+            .attr("x", -marginLeft)
+            .attr("y", marginTop - height / 25)
+            .attr("fill", "currentColor")
+            .attr("text-anchor", "start")
+            .style("font-size", "18px")
+            .style("font-weight", "bold")
+            .text("Power (kW)"),
+        ),
+    [data, svgRef, y],
   );
 
   // Add the second y-axis to the container
@@ -338,17 +347,21 @@ function LinePlot({
     void d3
       .select(svgRef.current)
       .append("g")
+      .classed("SOC", true)
       .attr("transform", `translate(${width - marginRight}, 0)`)
-      .style("font-size", "18px")
+      .style("font-size", "14px")
       .call(d3.axisRight(socY).ticks(10, ".0f"))
       .call((g) => g.select(".domain").remove())
-      .select("text")
-      .attr("x", -marginLeft)
-      .attr("y", -height + marginBottom + 10)
-      .attr("fill", "currentColor")
-      .attr("text-anchor", "start")
-      .style("font-size", "18px")
-      .text("SOC (%)");
+      .call((g) =>
+        g
+          .append("text")
+          .attr("x", 0)
+          .attr("y", marginTop - height / 25)
+          .attr("fill", colors["SOC"])
+          .attr("text-anchor", "start")
+          .style("font-size", "18px")
+          .text("SOC (%)"),
+      );
   }, [data, svgRef, y]);
 
   const bisect = d3.bisector((d) => new Date(d.date)).center; // function that gets the
@@ -362,7 +375,7 @@ function LinePlot({
       .style("display", null)
       .attr(
         "transform",
-        `translate(${d3.pointer(e)[0]},${d3.pointer(e)[1] + 15})`
+        `translate(${d3.pointer(e)[0]},${d3.pointer(e)[1] + 15})`,
       )
       .attr("id", "tooltip");
 
@@ -387,17 +400,17 @@ function LinePlot({
                   d === "date"
                     ? d3.timeFormat("%a %B %d %I:%M %p")(new Date(data[i][d]))
                     : d === "SOC"
-                    ? d3.format(".1f")(data[i][d]) + "%"
-                    : d3.format(".2f")(data[i][d]) + " kW"
-                }`
-            )
+                      ? d3.format(".1f")(data[i][d]) + "%"
+                      : d3.format(".2f")(data[i][d]) + " kW"
+                }`,
+            ),
           )
           .join("tspan")
           .attr("class", (d) => "tooltip-label " + d.match(/\w+/))
           .attr("x", 0)
           .attr("y", (d, i) => `${i * 1.1}em`)
           .attr("font-weight", (d, i) => (i ? null : "bold"))
-          .text((d) => d)
+          .text((d) => d),
       );
 
     size(text, path);
@@ -413,7 +426,7 @@ function LinePlot({
     text.attr("transform", `translate(${-w / 2},${15 - y})`);
     path.attr(
       "d",
-      `M${-w / 2 - 10},5H-5l5,-5l5,5H${w / 2 + 10}v${h + 20}h-${w + 20}z`
+      `M${-w / 2 - 10},5H-5l5,-5l5,5H${w / 2 + 10}v${h + 20}h-${w + 20}z`,
     );
   }
 
@@ -425,7 +438,7 @@ function LinePlot({
         }),
       ],
       1,
-      false
+      false,
     );
 
     const lines = d3.select(svgRef.current).append("g");
@@ -462,7 +475,7 @@ function LinePlot({
         }),
       ],
       1,
-      false
+      false,
     );
 
     // Percentage axis
@@ -499,24 +512,111 @@ function LinePlot({
 
 function EnergyMeter({ className, style }) {
   const { charge, discharge } = useSelector((state) => state.data.energy);
-  const { minSOC, peakData, peakMeter, peakBESS } = useSelector(
-    (state) => state.data.others
-  );
+  const {
+    minSOC,
+    peakDataOn,
+    peakDataOff,
+    peakMeterOn,
+    peakMeterOff,
+    peakBESS,
+    recGoal,
+  } = useSelector((state) => state.data.others);
+  const {
+    onPeak,
+    offPeak,
+    onPeakBESS,
+    offPeakBESS,
+    totalEnergy,
+    totalEnergyBESS,
+  } = useSelector((state) => state.data.peakTotals);
 
   console.log(charge, discharge);
 
   return (
     <div className="d-flex flex-column align-items-left border-top my-2">
-      <h1>Energy Exchanged</h1>
-      <p className="lead">Charged: {d3.format(",.2f")(charge)} kWh</p>
-      <p className="lead">Discharged: {d3.format(",.2f")(discharge)} kWh</p>
-      <h1>Other Statistics</h1>
-      <p className="lead">Minimum SOC: {d3.format(",.1f")(minSOC)}%</p>
-      <p className="lead">
-        Peak BESS Discharge: {d3.format(",.2f")(peakBESS)} kW{" "}
-      </p>
-      <p className="lead">Peak w/out BESS: {d3.format(",.2f")(peakData)} kW</p>
-      <p className="lead">Peak w/ BESS: {d3.format(",.2f")(peakMeter)} kW</p>
+      <h1 className="lead">Energy Exchanged</h1>
+      <div className="d-flex flex-row gap-4 my-2">
+        <table className="table table-bordered table-sm">
+          <caption>BESS</caption>
+          <thead className="thead-light">
+            <tr>
+              <td>Charged</td>
+              <td>Discharged</td>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>{d3.format(",.2f")(charge)} kWh</td>
+              <td>{d3.format(",.2f")(discharge)} kWh</td>
+            </tr>
+          </tbody>
+        </table>
+        <table className="table table-bordered table-sm">
+          <caption>
+            Site Total: {d3.format(",.2f")(totalEnergy)} kWh
+            <br />
+            Meter Total: {d3.format(",.2f")(totalEnergyBESS)}
+          </caption>
+          <thead className="thead-light">
+            <tr>
+              <th className="blank-cell"></th>
+              <th>On-Peak</th>
+              <th>Off-Peak</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Interval Data</th>
+              <td>{d3.format(",.2f")(onPeak)} kWh</td>
+              <td>{d3.format(",.2f")(offPeak)} kWh</td>
+            </tr>
+            <tr>
+              <th scope="row">w/ BESS</th>
+              <td>{d3.format(",.2f")(onPeakBESS)} kWh</td>
+              <td>{d3.format(",.2f")(offPeakBESS)} kWh</td>
+            </tr>
+          </tbody>
+        </table>
+        <table className="table table-bordered table-sm">
+          <caption>Peak Usage</caption>
+          <thead className="thead-light">
+            <tr>
+              <th className="blank-cell"></th>
+              <th>On-Peak</th>
+              <th>Off-Peak</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Interval Data</th>
+              <td>{d3.format(",.2f")(peakDataOn)} kW</td>
+              <td>{d3.format(",.2f")(peakDataOff)} kW</td>
+            </tr>
+            <tr>
+              <th scope="row">w/ BESS</th>
+              <td>{d3.format(",.2f")(peakMeterOn)} kW</td>
+              <td>{d3.format(",.2f")(peakMeterOff)} kW</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <table className="table table-bordered table-sm">
+        <caption>Other Statistics</caption>
+        <thead>
+          <tr>
+            <th>Minimum SOC</th>
+            <th>Peak BESS Discharge Power</th>
+            {/*<th>Recommended Goal</th>*/}
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>{d3.format(",.1f")(minSOC)}%</td>
+            <td>{d3.format(",.2f")(peakBESS)} kW</td>
+            {/*<td>{d3.format(",.2f")(recGoal)}</td>*/}
+          </tr>
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -546,7 +646,12 @@ export default function BuildingPowerTools({ className, style }) {
           <BatterySettings />
           <ACLoadSettings />
           <ArbitrageSettings />
+          <PeakSettings />
         </div>
+        <EventsTable
+          className="card p-4 d-flex flex-column align-items-left"
+          style={{ height: 300, width: 700, verticalAlign: "center" }}
+        />
       </div>
       <div
         className="d-flex flex-column align-items-center border-top my-2"

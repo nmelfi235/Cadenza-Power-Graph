@@ -9,10 +9,10 @@ export default function App() {
   // Enable bootstrap tooltips
   useEffect(() => {
     const tooltipTriggerList = document.querySelectorAll(
-      '[data-bs-toggle="tooltip"]'
+      '[data-bs-toggle="tooltip"]',
     );
     const tooltipList = [...tooltipTriggerList].map(
-      (tooltipTriggerEl) => new bootstrap.Tooltip(tooltipTriggerEl)
+      (tooltipTriggerEl) => new bootstrap.Tooltip(tooltipTriggerEl),
     );
     return () => {
       tooltipList.map((t) => t.dispose());
@@ -26,15 +26,11 @@ export default function App() {
     >
       <BuildingPowerTools
         className="p-4 d-flex flex-column align-items-left"
-        style={{ height: "auto", width: 1200, verticalAlign: "center" }}
+        style={{ height: "auto", width: 1250, verticalAlign: "center" }}
       />
       {/*<BatteryPowerTools
         className="card p-4 d-flex flex-column align-items-left"
         style={{ height: "auto", width: 1200, verticalAlign: "center" }}
-      />
-      <EventsTable
-        className="card p-4 d-flex flex-column align-items-left"
-        style={{ height: 400, width: 900, verticalAlign: "center" }}
       />
       {/* Note: The StateOfCarbon Graph needs to be connected to a backend that preprocesses the data from the NE ISO API 
       <StateOfCarbon className="card p-4 d-flex flex-column align-items-left" />*/}

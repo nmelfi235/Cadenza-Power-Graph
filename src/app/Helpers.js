@@ -12,13 +12,13 @@ export const tickFormat = (date) => {
     d3.timeHour(date) < date // checks precision
       ? formatMinute // returns function based on date precision
       : d3.timeDay(date) < date
-      ? formatHour
-      : d3.timeMonth(date) < date
-      ? d3.timeWeek(date) < date
-        ? formatDay
-        : formatWeek
-      : d3.timeYear(date) < date
-      ? formatMonth
-      : formatYear
+        ? formatHour
+        : d3.timeMonth(date) < date
+          ? d3.timeWeek(date) < date
+            ? formatDay
+            : formatWeek
+          : d3.timeYear(date) < date
+            ? formatMonth
+            : formatYear
   )(date);
 };

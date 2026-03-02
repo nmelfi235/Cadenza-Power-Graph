@@ -22,7 +22,7 @@ export default function BatterySettings() {
               setBatterySetting({
                 property: "maxChargePower",
                 value: +e.target.value,
-              })
+              }),
             );
             console.log(settings);
           }}
@@ -46,7 +46,7 @@ export default function BatterySettings() {
               setBatterySetting({
                 property: "maxDischargePower",
                 value: +e.target.value,
-              })
+              }),
             );
             console.log(settings);
           }}
@@ -69,17 +69,17 @@ export default function BatterySettings() {
             dispatch(
               setBatterySetting({
                 property: "maxAmpHours",
-                value: +e.target.value,
-              })
+                value: +e.target.value * 20,
+              }),
             );
             console.log(settings);
           }}
           className="form-control"
           data-bs-toggle="tooltip"
           data-bs-placement="right"
-          title="Battery capacity (Ah)"
+          title="Battery capacity (kWh)"
         />
-        <div className="input-group-text">Ah</div>
+        <div className="input-group-text">kWh</div>
       </div>
       <label htmlFor="initial-soc-input">Starting SOC:</label>
       <div className="input-group">
@@ -94,7 +94,7 @@ export default function BatterySettings() {
               setBatterySetting({
                 property: "initialSOC",
                 value: +e.target.value,
-              })
+              }),
             );
             console.log(settings);
           }}
@@ -118,7 +118,7 @@ export default function BatterySettings() {
               setBatterySetting({
                 property: "stateOfHealth",
                 value: +e.target.value,
-              })
+              }),
             );
             console.log(settings);
           }}
