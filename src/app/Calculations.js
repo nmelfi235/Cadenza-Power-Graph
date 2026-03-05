@@ -5,6 +5,7 @@ import {
   addEnergy,
   addPeakUsage,
 } from "../dataSlice";
+import { setCurrentGoal } from "../slices/goals";
 // This file holds the calculations for each DPS line.
 
 // The DPS System evaluates its desired operation and power level every time interval tDPS.
@@ -40,13 +41,60 @@ const minutesBetween = (date0, date1) => {
   return isNaN(difference) ? -1 : difference;
 };
 
+const getLatestGoal = (date) => {
+  const dateHHMM = [new Date(date).getHours(), new Date(date).getMinutes()];
+  return store.getState().goals.goals.reduce((currentGoal, goal) => {
+    const startTime = goal["StartTime"].split(":").map((el) => parseInt(el));
+    const endTime = goal["EndTime"].split(":").map((el) => parseInt(el));
+
+    const dayTimeGoal =
+      startTime[0] <= endTime[0] ||
+      (startTime[0] === endTime[0] && startTime[1] <= endTime[1]);
+    const nightTimeGoal = !dayTimeGoal;
+    /*startTime[0] >= endTime[0] ||
+      (startTime[0] === endTime[0] && startTime[1] >= endTime[1]);*/
+    const afterStartTime =
+      (startTime[0] === dateHHMM[0] && dateHHMM[1] === 0) ||
+      startTime[0] < dateHHMM[0] ||
+      (startTime[0] === dateHHMM[0] && startTime[1] <= dateHHMM[1]);
+    const beforeEndTime =
+      (dateHHMM[0] === endTime[0] && dateHHMM[1] === 0) ||
+      dateHHMM[0] < endTime[0] ||
+      (dateHHMM[0] === endTime[0] && dateHHMM[1] <= endTime[1]);
+    const sameStartEndTime =
+      startTime[0] === endTime[0] && startTime[1] === endTime[1];
+
+    const compareGoals = (goal1, goal2) => {
+      if (goal2 === null) return goal1;
+
+      return goal1 < goal2 ? goal1 : goal2;
+    };
+
+    if (dayTimeGoal && afterStartTime && beforeEndTime && !sameStartEndTime) {
+      // Daytime event, after start time (morning), before end time (evening)
+      return compareGoals(goal, currentGoal);
+    } else if (
+      (nightTimeGoal && afterStartTime) ||
+      (nightTimeGoal && beforeEndTime && !sameStartEndTime)
+    ) {
+      // Not a daytime event, after end time (overnight), before start time (morning)
+      return compareGoals(goal, currentGoal);
+    }
+    return currentGoal;
+  }, null);
+};
+
 // pGoal refers to the building power level that the DPS system is attempting to maintain and is described in more detail in Section 3.2
 // Function takes an optional goal as input to set the goal, and it also returns the power goal.
-export const pGoal = (goal = null) => {
-  const stateGoal = store.getState().data.DPS.pGoal;
-  if (goal !== stateGoal && goal !== null) store.dispatch(setDPSProperty(goal));
+export const pGoal = (date) => {
+  const stateGoal = getLatestGoal(date);
 
-  return store.getState().data.DPS.pGoal;
+  if (stateGoal === null)
+    return store.getState().goal.currentGoal["PowerLevel"];
+
+  store.dispatch(setCurrentGoal(stateGoal));
+
+  return stateGoal["PowerLevel"];
 };
 
 // pActual refers to the power level as seen at the WattNode, i.e. positioned directly behind the building's utility meter.
@@ -108,7 +156,7 @@ const pBuildingNoEffects = (date, powerActual) => {
 //   This is the BESS's actual power contribution as determined by the operational logic.
 export const pBESS = (currentDate, powerActual) => {
   const beforeState = store.getState();
-  const goal = beforeState.data.DPS.pGoal;
+  const goal = beforeState.goals.currentGoal["PowerLevel"];
   const solar = beforeState.data.solarState;
 
   // Reset battery when graph is reset (oldDate is after current date when graph is reset)
@@ -162,11 +210,12 @@ export const pMeter = (date, powerActual) => {
   return pLast;
 };
 
-const getLatestEvent = (date, eventList) => {
+const getLatestEvent = (date) => {
+  const eventList = store.getState().events.events;
   const dateHHMM = [new Date(date).getHours(), new Date(date).getMinutes()];
   return eventList.reduce((currentEvent, event) => {
-    const startTime = event.startTime.split(":").map((el) => parseInt(el));
-    const endTime = event.endTime.split(":").map((el) => parseInt(el));
+    const startTime = event["StartTime"].split(":").map((el) => parseInt(el));
+    const endTime = event["EndTime"].split(":").map((el) => parseInt(el));
 
     const dayTimeEvent =
       startTime[0] <= endTime[0] ||
@@ -185,7 +234,9 @@ const getLatestEvent = (date, eventList) => {
 
     const compareEvents = (event1, event2) => {
       if (event2 === null) return event1;
-      return event1.eventType === "Discharge" && event2.eventType === "Charge"
+      return (event1["EventType"] === "Discharge" ||
+        event1["EventType"] === "Timeblock") &&
+        event2["EventType"] === "Charge"
         ? event1
         : event2;
     };
@@ -215,6 +266,7 @@ export const calcBatteryState = (date, powerFromGoal) => {
     store.getState().data.batteryState;
   const eventList = store.getState().data.events;
   const latestEvent = getLatestEvent(date, eventList);
+  console.log(latestEvent);
   const { startOfDischarge, endOfDischarge } = store.getState().data.Arbitrage;
   const { maxDischargePower } = store.getState().data.batterySettings;
   const startOfToday = new Date(
@@ -252,31 +304,31 @@ export const calcBatteryState = (date, powerFromGoal) => {
   }
   // First, check if battery should charge-- if DPS flag is on, skip this step. If power > goal, skip this step. If charge is already full, skip this step.
   else if (
-    latestEvent?.eventType !== "Timeblock" &&
+    latestEvent?.EventType !== "Timeblock" &&
     batterySOC < 100 &&
-    (latestEvent?.eventType === "Charge" ||
-      (latestEvent?.eventType !== "Discharge" && powerFromGoal < 0))
+    (latestEvent?.EventType === "Charge" ||
+      (latestEvent?.EventType !== "Discharge" && powerFromGoal < 0))
   )
     chargeBattery(
       date,
-      !(latestEvent && latestEvent.eventType === "Charge")
+      !(latestEvent && latestEvent["EventType"] === "Charge")
         ? -powerFromGoal - store.getState().data.ACLoadPower
-        : parseFloat(latestEvent.powerLevel),
+        : parseFloat(latestEvent["PowerLevel"]),
     );
   // send negative power because negative power is a charge here. Converts to positive.
   // Next, check if battery should discharge-- if battery is empty, skip this step. If power < goal, skip this step.
   else if (
     batterySOC > 0 &&
-    (latestEvent?.eventType === "Discharge" ||
-      (latestEvent?.eventType !== "Charge" && powerFromGoal > 0))
+    (latestEvent?.EventType === "Discharge" ||
+      (latestEvent?.EventType !== "Charge" && powerFromGoal > 0))
   )
     dischargeBattery(
       date,
-      !(latestEvent && latestEvent.eventType === "Discharge")
+      !(latestEvent && latestEvent["EventType"] === "Discharge")
         ? powerFromGoal
-        : parseFloat(latestEvent.powerLevel),
+        : parseFloat(latestEvent["PowerLevel"]),
     );
-  else if (latestEvent === null) {
+  else if (latestEvent === null || latestEvent["EventType"] === "Timeblock") {
     store.dispatch(
       setBatteryState({
         batteryVoltage: batteryVoltage,

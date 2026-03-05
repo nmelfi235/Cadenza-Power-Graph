@@ -2,7 +2,6 @@ import { useEffect } from "react";
 import BuildingPowerTools from "./components/BuildingPowerTools.jsx";
 import BatteryPowerTools from "./components/BatteryPowerTools.jsx";
 import "./index.css";
-import EventsTable from "./components/EventsTable.jsx";
 import StateOfCarbon from "./components/StateOfCarbon.jsx";
 
 export default function App() {

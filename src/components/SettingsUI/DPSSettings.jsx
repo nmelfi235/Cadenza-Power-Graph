@@ -9,10 +9,10 @@ export default function DPSSettings() {
   // Enable bootstrap tooltips
   useEffect(() => {
     const tooltipTriggerList = document.querySelectorAll(
-      '[data-bs-toggle="tooltip"]'
+      '[data-bs-toggle="tooltip"]',
     );
     const tooltipList = [...tooltipTriggerList].map(
-      (tooltipTriggerEl) => new bootstrap.Tooltip(tooltipTriggerEl)
+      (tooltipTriggerEl) => new bootstrap.Tooltip(tooltipTriggerEl),
     );
     return () => {
       tooltipList.map((t) => t.dispose());
@@ -22,26 +22,6 @@ export default function DPSSettings() {
   return (
     <div className="card form-row mx-2 my-1 px-3 py-2" style={{ width: 200 }}>
       <h4>DPS Settings</h4>
-      <label htmlFor="goal-input">Goal: </label>
-      <div className="input-group">
-        <input
-          id="goal-input"
-          type="number"
-          step="any"
-          placeholder={useSelector((state) => state.data.DPS.pGoal)}
-          onChange={(e) => {
-            e.preventDefault();
-            dispatch(
-              setDPSProperty({ property: "pGoal", value: e.target.value })
-            );
-          }}
-          className="form-control"
-          data-bs-toggle="tooltip"
-          data-bs-placement="right"
-          title="Desired Peak Power (kW)"
-        />
-        <div className="input-group-text">kW</div>
-      </div>
       <label htmlFor="clearance-input">Charge Clearance: </label>
       <div className="input-group">
         <input
@@ -55,7 +35,7 @@ export default function DPSSettings() {
               setDPSProperty({
                 property: "chargeClearance",
                 value: e.target.value,
-              })
+              }),
             );
           }}
           className="form-control"
@@ -78,7 +58,7 @@ export default function DPSSettings() {
               setDPSProperty({
                 property: "meterScanTime",
                 value: e.target.value,
-              })
+              }),
             );
           }}
           className="form-control"
@@ -98,7 +78,7 @@ export default function DPSSettings() {
           onChange={(e) => {
             e.preventDefault();
             dispatch(
-              setDPSProperty({ property: "scanTime", value: e.target.value })
+              setDPSProperty({ property: "scanTime", value: e.target.value }),
             );
           }}
           className="form-control"

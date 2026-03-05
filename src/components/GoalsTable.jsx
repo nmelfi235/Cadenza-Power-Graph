@@ -1,14 +1,13 @@
 import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
-  initialEventState,
-  addEvent,
-  removeEvent,
-  editEvent,
-  EventTypes,
-} from "../slices/events";
+  initialGoalState,
+  addGoal,
+  removeGoal,
+  editGoal,
+} from "../slices/goals";
 
-export const EventsTable = ({
+export const GoalsTable = ({
   className,
   style,
   colWidth = 10,
@@ -16,7 +15,7 @@ export const EventsTable = ({
 }) => {
   return (
     <div className={className} style={style}>
-      <h2>Events</h2>
+      <h2>Goals</h2>
       <div className="table-responsive">
         <table className="table table-striped table-sm table-hover">
           <thead>
@@ -26,16 +25,10 @@ export const EventsTable = ({
                 className="w-25"
                 style={{ width: colWidth, height: rowHeight }}
               >
-                Event Type
-              </th>
-              <th
-                className="w-20"
-                style={{ width: colWidth, height: rowHeight }}
-              >
                 Start Time
               </th>
               <th
-                className="w-20"
+                className="w-25"
                 style={{ width: colWidth, height: rowHeight }}
               >
                 End Time
@@ -50,7 +43,7 @@ export const EventsTable = ({
           </thead>
           <tbody>
             <TableRows colWidth={colWidth} rowHeight={rowHeight} />
-            <EventSelector colWidth={colWidth} rowHeight={rowHeight} />
+            <GoalSelector colWidth={colWidth} rowHeight={rowHeight} />
           </tbody>
         </table>
       </div>
@@ -58,8 +51,8 @@ export const EventsTable = ({
   );
 };
 
-const EventSelector = ({ colWidth = 10, rowHeight = 10 }) => {
-  const [rowState, setRowState] = useState(initialEventState);
+const GoalSelector = ({ colWidth = 10, rowHeight = 10 }) => {
+  const [rowState, setRowState] = useState(initialGoalState);
   const dispatch = useDispatch();
 
   const handleChange = (e) => {
@@ -72,7 +65,7 @@ const EventSelector = ({ colWidth = 10, rowHeight = 10 }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    dispatch(addEvent(rowState));
+    dispatch(addGoal(rowState));
   };
 
   return (
@@ -81,18 +74,6 @@ const EventSelector = ({ colWidth = 10, rowHeight = 10 }) => {
         <button type="button" className="btn" onClick={handleSubmit}>
           <i className="fa-solid fa-plus"></i>
         </button>
-      </td>
-      <td>
-        <select
-          className="form-control"
-          defaultValue={rowState["EventType"]}
-          onChange={handleChange}
-          name="EventType"
-        >
-          {EventTypes.map((type, index) => (
-            <option key={index}>{type}</option>
-          ))}
-        </select>
       </td>
       <td>
         <input
@@ -127,12 +108,12 @@ const EventSelector = ({ colWidth = 10, rowHeight = 10 }) => {
   );
 };
 
-const Row = ({ colWidth = 10, rowHeight = 10, event }) => {
-  const [rowState, setRowState] = useState({ ...event, editing: false });
+const Row = ({ colWidth = 10, rowHeight = 10, goal }) => {
+  const [rowState, setRowState] = useState({ ...goal, editing: false });
   const dispatch = useDispatch();
 
   const deleteRow = (e) => {
-    dispatch(removeEvent({ ID: event.ID }));
+    dispatch(removeGoal({ ID: goal.ID }));
   };
 
   const editRow = (e) => {
@@ -149,7 +130,7 @@ const Row = ({ colWidth = 10, rowHeight = 10, event }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    dispatch(editEvent(rowState));
+    dispatch(editGoal(rowState));
     setRowState({ ...rowState, editing: false });
   };
 
@@ -161,7 +142,7 @@ const Row = ({ colWidth = 10, rowHeight = 10, event }) => {
             <i
               className="fa-solid fa-trash"
               style={{ width: colWidth / 4, height: rowHeight }}
-              index={event.ID}
+              index={goal.ID}
             ></i>
           </button>
           <button
@@ -174,27 +155,11 @@ const Row = ({ colWidth = 10, rowHeight = 10, event }) => {
                 rowState.editing ? "fa-solid fa-check" : "fa-solid fa-pencil"
               }
               style={{ width: colWidth / 4, height: rowHeight }}
-              index={event.ID}
+              index={goal.ID}
             ></i>
           </button>
         </div>
       </td>
-      {rowState.editing ? (
-        <td>
-          <select
-            className="form-control"
-            defaultValue={rowState["EventType"]}
-            onChange={handleChange}
-            name="EventType"
-          >
-            {EventTypes.map((type, index) => (
-              <option key={index}>{type}</option>
-            ))}
-          </select>
-        </td>
-      ) : (
-        <td className="px-3 py-2">{event["EventType"]}</td>
-      )}
       {rowState.editing ? (
         <td>
           <input
@@ -206,7 +171,7 @@ const Row = ({ colWidth = 10, rowHeight = 10, event }) => {
           />
         </td>
       ) : (
-        <td className="px-3 py-2">{event["StartTime"]}</td>
+        <td className="px-3 py-2">{goal["StartTime"]}</td>
       )}
       {rowState.editing ? (
         <td>
@@ -219,7 +184,7 @@ const Row = ({ colWidth = 10, rowHeight = 10, event }) => {
           />
         </td>
       ) : (
-        <td className="px-3 py-2">{event["EndTime"]}</td>
+        <td className="px-3 py-2">{goal["EndTime"]}</td>
       )}
       {rowState.editing ? (
         <td className="d-flex flex-row">
@@ -235,7 +200,7 @@ const Row = ({ colWidth = 10, rowHeight = 10, event }) => {
         </td>
       ) : (
         <td className="px-3 py-2">
-          {event["PowerLevel"]} <span className="float-end">kW</span>
+          {goal["PowerLevel"]} <span className="float-end">kW</span>
         </td>
       )}
     </tr>
@@ -243,15 +208,15 @@ const Row = ({ colWidth = 10, rowHeight = 10, event }) => {
 };
 
 const TableRows = ({ colWidth = 10, rowHeight = 10 }) => {
-  const events = useSelector((state) => state.events.events);
+  const goals = useSelector((state) => state.goals.goals);
 
   return (
     <>
-      {events.map((event, index) => (
+      {goals.map((goal, index) => (
         <Row
           colWidth={colWidth}
           rowHeight={rowHeight}
-          event={event}
+          goal={goal}
           key={index}
         />
       ))}

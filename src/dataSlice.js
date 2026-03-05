@@ -10,7 +10,7 @@ export const dataSlice = createSlice({
       usableEnergy: 90,
     },
     DPS: {
-      pGoal: 5,
+      //  pGoal: 5,
       chargeClearance: 0, // new feature where DPS won't initiate a charge if it is too close to the goal (kW)
       meterScanTime: 30,
       scanTime: 6,
@@ -54,8 +54,6 @@ export const dataSlice = createSlice({
       { date: "01-01-1971", voltage: 53, current: 80 },
       { date: "01-02-1971", voltage: 53, current: 80 },
     ],
-    eventCount: 0,
-    events: [],
     energy: {
       discharge: 0,
       charge: 0,
@@ -106,15 +104,6 @@ export const dataSlice = createSlice({
     },
     setBatteryProfile: (state, data) => {
       state.batteryProfile = data.payload;
-    },
-    setEventTable: (state, data) => {
-      state.events = data.payload;
-    },
-    insertEvent: (state, data) => {
-      data.payload.eventID = state.eventCount;
-      state.eventCount++;
-      console.log(data.payload);
-      state.events.push(data.payload);
     },
     setBatterySetting: (state, data) => {
       const { property, value } = data.payload;
@@ -312,8 +301,9 @@ function isPeak(date, tariff) {
   };
 
   return (
+    !(minutesBetween(startOfToday, time) < 0) &&
     minutesBetween(startOfToday, time) > 0 &&
-    minutesBetween(time, endOfToday) >= 0
+    minutesBetween(time, endOfToday) > 0
     //&& !isHoliday(time)
     //&& !(isWeekend() && !weekendsArePeak)
   );
@@ -323,8 +313,6 @@ export const {
   setACLoadPower,
   setBuildingData,
   setBatteryProfile,
-  setEventTable,
-  insertEvent,
   setBatterySetting,
   setArbitrageProperty,
   setDPSProperty,

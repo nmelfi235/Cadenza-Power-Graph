@@ -36,14 +36,15 @@ import ACLoadSettings from "./SettingsUI/ACLoadSettings.jsx";
 import ArbitrageSettings from "./SettingsUI/ArbitrageSettings.jsx";
 import PdfGen from "./PdfGen.jsx";
 import simplify from "simplify-js";
-import EventsTable from "./EventsTable.jsx";
+import { EventsTable } from "./EventsTable.jsx";
 import PeakSettings from "./SettingsUI/PeakSettings.jsx";
+import { GoalsTable } from "./GoalsTable.jsx";
+import { setCurrentGoal } from "../slices/goals.js";
 
 // This component is the form where the .csv file will be inputthen parsed and sent to the redux store for use in other components.
 function CSVField() {
   const [file, setFile] = useState(null);
   const dispatch = useDispatch();
-  const PGOAL = useSelector((state) => state.data.DPS.pGoal);
 
   // Enable bootstrap tooltips
   useEffect(() => {
@@ -65,6 +66,7 @@ function CSVField() {
         resetData();
         dispatch(resetBuildingData());
         dispatch(resetBatteryProfile());
+        dispatch(setCurrentGoal({}));
         const content = ev.target.result;
         const parsedContent = parse(content).data.map((d) => {
           return {
@@ -77,18 +79,6 @@ function CSVField() {
 
         const batteryStats = []; // contents are created in parsedPower mapping
         const solarPower = store.getState().data.solarPower;
-        /*const simpleContent = simplify(
-          [
-            ...parsedContent.map((d) => {
-              return {
-                x: Date.parse(d[0]),
-                y: !isNaN(parseFloat(d[1])) ? parseFloat(d[1]) : 0,
-              };
-            }),
-          ],
-          0.1,
-          false
-        );*/
         //console.log(parsedContent);
         const parsedPower = parsedContent.map((datum) => {
           const date = datum.x.toString(); //datum[0]; //new Date(datum[0]);
@@ -107,34 +97,38 @@ function CSVField() {
             MeterData: (() => {
               dispatch(getPeakPower({ time: date, power: power }));
               let actual = parseFloat(pActual(date, power).toFixed(2));
-              //console.log("Actual: " + actual);
+              //console.log("Actual: ", actual);
               return actual;
             })(),
             SolarPower: (() => {
               let solar = parseFloat(pSolar(solarPower, date).toFixed(2));
               dispatch(setSolarState(solar));
-              //console.log("Solar: " + solar);
+              //console.log("Solar: ", solar);
               return solar;
             })(),
+            ...(!(store.getState().goals.goals.length === 0) && {
+              PowerGoal: (() => {
+                let goal = parseFloat(pGoal(date));
+                //console.log("Goal: ", goal);
+                return goal;
+              })(),
+            }),
             BatteryPower: (() => {
               let BESS = parseFloat(pBESS(date, power).toFixed(2));
               dispatch(getPeakBESS({ BESS: BESS }));
-              //console.log("BESS: " + BESS);
+              //console.log("BESS: ", BESS);
               return BESS;
             })(),
             TotalPower: (() => {
               let building = parseFloat(pBuilding(date, power).toFixed(2));
+              //console.log("Building: ", building);
               return building;
             })(),
             ProjectedMeter: (() => {
               let meter = parseFloat(pMeter(date, power).toFixed(2));
               dispatch(getPeakMeter({ time: date, meter: meter }));
-              //console.log("Meter: " + meter);
+              //console.log("Meter: ", meter);
               return meter;
-            })(),
-            PowerGoal: (() => {
-              let goal = parseFloat(pGoal(PGOAL));
-              return goal;
             })(),
             SOC: (() => {
               dispatch(getSOC());
@@ -186,7 +180,7 @@ function CSVField() {
   return (
     <form className="d-flex flex-column w-75 justify-content-center align-items-center">
       <div className="d-flex flex-row justify-content-center mx-2">
-        <div className="d-flex flex-column mx-2 text-bg-info p-2 rounded">
+        <div className="d-flex flex-column mx-2 text-bg-success p-2 rounded">
           <p className="lead m-0">Interval Data:</p>
           <div className="form-check form-switch my-0">
             <input type="checkbox" className="form-check-input" role="switch" />
@@ -431,10 +425,14 @@ function LinePlot({
   }
 
   const drawLine = (property) => {
+    const isFinite = (n) => (Number.isFinite(n) ? n : 0);
     const simpleData = simplify(
       [
         ...data.map((datum) => {
-          return { x: x(Date.parse(datum.date)), y: y(datum[property]) };
+          return {
+            x: isFinite(x(Date.parse(datum.date))),
+            y: isFinite(y(datum[property])),
+          };
         }),
       ],
       1,
@@ -449,14 +447,14 @@ function LinePlot({
       .x((d) => d.x)
       .y((d) => d.y);
 
-    lines
+    /*lines
       .append("path")
       .attr("class", property)
       .attr("fill", "none")
       .attr("stroke", "#ccc")
       .attr("stroke-width", 1.5)
       .attr("stroke-dasharray", [10, 8])
-      .attr("d", line(simpleData.filter((d) => !isNaN(d.y))));
+      .attr("d", line(simpleData.filter((d) => isNaN(d.y))));*/
 
     lines
       .append("path")
@@ -464,7 +462,7 @@ function LinePlot({
       .attr("fill", "none")
       .attr("stroke", colors[property ? property : 0])
       .attr("stroke-width", 1.5)
-      .attr("d", line(simpleData));
+      .attr("d", line(simpleData.filter((d) => !isNaN(d.y))));
   };
 
   useEffect(() => {
@@ -648,10 +646,16 @@ export default function BuildingPowerTools({ className, style }) {
           <ArbitrageSettings />
           <PeakSettings />
         </div>
-        <EventsTable
-          className="card p-4 d-flex flex-column align-items-left"
-          style={{ height: 300, width: 700, verticalAlign: "center" }}
-        />
+        <div className="d-flex flex-row justify-content-center">
+          <GoalsTable
+            className="card p-4 d-flex flex-column align-items-left"
+            style={{ height: 300, width: 700, verticalAlign: "center" }}
+          />
+          <EventsTable
+            className="card p-4 d-flex flex-column align-items-left"
+            style={{ height: 300, width: 700, verticalAlign: "center" }}
+          />
+        </div>
       </div>
       <div
         className="d-flex flex-column align-items-center border-top my-2"
